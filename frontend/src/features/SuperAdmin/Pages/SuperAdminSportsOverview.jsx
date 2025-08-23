@@ -1,7 +1,9 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trophy, Users, Calendar, CheckCircle2, TrendingUp, Activity, Target, Award, Globe, Cpu, Database, BarChart3, Crown, Sparkles, Menu, X, Search, Filter, Bell, Settings, LogOut, Home, ChevronRight, Play, Pause, RotateCcw, Eye } from 'lucide-react';
+import { Trophy, Users, Calendar, CheckCircle2, TrendingUp, Activity, Target, Award, Globe, Cpu, Database, BarChart3, Crown, Sparkles, Menu, X, Search, Filter, Bell, Settings, LogOut, Home, ChevronRight, Play, Pause, RotateCcw, Eye, Upload, ImageIcon, Edit3, Trash2, Save, Camera } from 'lucide-react';
+import superAdminAPIService from '../../../services/superAdminAPI';
+import cricketAPIService from '../../../services/cricketAPI';
 
 const SportsDashboard = () => {
   const navigate = useNavigate();
@@ -10,31 +12,58 @@ const SportsDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState('all');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  // Sample data - in real app, this would come from API
-  const dashboardStats = {
-    totalPlayers: 1247,
-    totalSports: 8,
-    totalTeams: 156,
-    matchesCompleted: 89,
-    activeMatches: 12,
-    upcomingMatches: 45
+  const [showLogoManager, setShowLogoManager] = useState(false);
+  const [selectedTeamForLogo, setSelectedTeamForLogo] = useState(null);
+  const [teamLogos, setTeamLogos] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [dashboardStats, setDashboardStats] = useState({
+    totalPlayers: 0,
+    totalSports: 0,
+    totalTeams: 0,
+    matchesCompleted: 0,
+    activeMatches: 0,
+    upcomingMatches: 0
+  });
+  const [cricketTeams, setCricketTeams] = useState([]);
+  // Get cricket data from localStorage or use default
+  const getCricketData = () => {
+    try {
+      const storedTeams = localStorage.getItem('cricketTeams');
+      if (storedTeams) {
+        const teams = JSON.parse(storedTeams);
+        const totalPlayers = teams.reduce((total, team) => total + (team.players?.length || 0), 0);
+        return {
+          teams: teams.length,
+          players: totalPlayers,
+          teamList: teams.map(team => ({
+            id: team.id,
+            name: team.name,
+            shortName: team.shortName,
+            logo: team.logo,
+            playerCount: team.players?.length || 0
+          }))
+        };
+      }
+    } catch (error) {
+      console.warn('Error loading cricket data from localStorage:', error);
+    }
+    return { teams: 3, players: 9, teamList: [] };
   };
 
-  const sportsData = [
+  const [sportsData, setSportsData] = useState([
     {
       id: 1,
       name: 'Cricket',
       icon: '🏏',
-      players: 320,
-      teams: 40,
+      players: getCricketData().players,
+      teams: getCricketData().teams,
       matches: 25,
       status: 'active',
       progress: 65,
       description: 'Premier cricket tournament with international standards',
       nextMatch: 'Finals - Team A vs Team B',
-      color: 'from-emerald-500 to-green-600'
+      color: 'from-emerald-500 to-green-600',
+      teamList: getCricketData().teamList
     },
     {
       id: 2,
@@ -47,7 +76,12 @@ const SportsDashboard = () => {
       progress: 45,
       description: 'International football championship',
       nextMatch: 'Semi-finals - Lions vs Eagles',
-      color: 'from-blue-500 to-cyan-600'
+      color: 'from-blue-500 to-cyan-600',
+      teamList: [
+        { id: 5, name: 'FC Ahmedabad', shortName: 'FCA', logo: null },
+        { id: 6, name: 'Gujarat United', shortName: 'GU', logo: null },
+        { id: 7, name: 'Surat Strikers', shortName: 'SS', logo: null }
+      ]
     },
     {
       id: 3,
@@ -60,7 +94,11 @@ const SportsDashboard = () => {
       progress: 80,
       description: 'Professional basketball league',
       nextMatch: 'Championship - Warriors vs Kings',
-      color: 'from-orange-500 to-red-600'
+      color: 'from-orange-500 to-red-600',
+      teamList: [
+        { id: 8, name: 'Ahmedabad Ballers', shortName: 'AB', logo: null },
+        { id: 9, name: 'Vadodara Hoops', shortName: 'VH', logo: null }
+      ]
     },
     {
       id: 4,
@@ -73,7 +111,11 @@ const SportsDashboard = () => {
       progress: 100,
       description: 'Singles and doubles badminton championship',
       nextMatch: 'Tournament completed',
-      color: 'from-purple-500 to-violet-600'
+      color: 'from-purple-500 to-violet-600',
+      teamList: [
+        { id: 10, name: 'Shuttlers Club', shortName: 'SC', logo: null },
+        { id: 11, name: 'Racket Masters', shortName: 'RM', logo: null }
+      ]
     },
     {
       id: 5,
@@ -86,7 +128,11 @@ const SportsDashboard = () => {
       progress: 0,
       description: 'Beach and indoor volleyball tournament',
       nextMatch: 'Opening ceremony - March 15',
-      color: 'from-yellow-500 to-orange-600'
+      color: 'from-yellow-500 to-orange-600',
+      teamList: [
+        { id: 12, name: 'Beach Volley', shortName: 'BV', logo: null },
+        { id: 13, name: 'Net Warriors', shortName: 'NW', logo: null }
+      ]
     },
     {
       id: 6,
@@ -99,7 +145,11 @@ const SportsDashboard = () => {
       progress: 55,
       description: 'Singles tennis championship',
       nextMatch: 'Quarter-finals ongoing',
-      color: 'from-pink-500 to-rose-600'
+      color: 'from-pink-500 to-rose-600',
+      teamList: [
+        { id: 14, name: 'Ace Players', shortName: 'AP', logo: null },
+        { id: 15, name: 'Court Kings', shortName: 'CK', logo: null }
+      ]
     },
     {
       id: 7,
@@ -112,7 +162,11 @@ const SportsDashboard = () => {
       progress: 25,
       description: 'Fast-paced table tennis tournament',
       nextMatch: 'Round of 16 - Tomorrow',
-      color: 'from-indigo-500 to-blue-600'
+      color: 'from-indigo-500 to-blue-600',
+      teamList: [
+        { id: 16, name: 'Paddle Masters', shortName: 'PM', logo: null },
+        { id: 17, name: 'Spin Doctors', shortName: 'SD', logo: null }
+      ]
     },
     {
       id: 8,
@@ -125,9 +179,96 @@ const SportsDashboard = () => {
       progress: 0,
       description: 'Ice hockey championship',
       nextMatch: 'Season starts April 1',
-      color: 'from-teal-500 to-cyan-600'
+      color: 'from-teal-500 to-cyan-600',
+      teamList: [
+        { id: 18, name: 'Ice Breakers', shortName: 'IB', logo: null },
+        { id: 19, name: 'Stick Warriors', shortName: 'SW', logo: null }
+      ]
     }
-  ];
+  ]);
+  const containerRef = useRef(null);
+
+  // Refresh cricket data from localStorage
+  const refreshCricketData = useCallback(() => {
+    const cricketData = getCricketData();
+    setSportsData(prevData => 
+      prevData.map(sport => 
+        sport.name === 'Cricket' 
+          ? { 
+              ...sport, 
+              teams: cricketData.teams,
+              players: cricketData.players,
+              teamList: cricketData.teamList
+            }
+          : sport
+      )
+    );
+    
+    // Update dashboard stats with current cricket data
+    setDashboardStats(prevStats => {
+      const currentCricketData = prevStats.totalPlayers ? getCricketData() : { players: 0, teams: 0 };
+      return {
+        ...prevStats,
+        totalPlayers: Math.max(prevStats.totalPlayers + cricketData.players - (currentCricketData.players || 0), cricketData.players),
+        totalTeams: Math.max(prevStats.totalTeams + cricketData.teams - (currentCricketData.teams || 0), cricketData.teams)
+      };
+    });
+  }, []);
+
+  // Load dashboard data from API
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        console.log('Loading dashboard data...');
+
+        // Refresh cricket data from localStorage
+        refreshCricketData();
+
+        // Use static data for dashboard stats (since we removed backend integration)
+        const cricketData = getCricketData();
+        setDashboardStats({
+          totalPlayers: cricketData.players + 743, // Add other sports' static players
+          totalSports: 8,
+          totalTeams: cricketData.teams + 131, // Add other sports' static teams
+          matchesCompleted: 82,
+          activeMatches: 12,
+          upcomingMatches: 28
+        });
+
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboardData();
+  }, [refreshCricketData]);
+
+  // Listen for storage changes (when data is updated in cricket management)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'cricketTeams') {
+        refreshCricketData();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom events when localStorage is updated in the same tab
+    const handleCricketUpdate = () => {
+      refreshCricketData();
+    };
+    
+    window.addEventListener('cricketTeamsUpdated', handleCricketUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cricketTeamsUpdated', handleCricketUpdate);
+    };
+  }, [refreshCricketData]);
 
   // Mouse tracking effect
   useEffect(() => {
@@ -161,6 +302,45 @@ const SportsDashboard = () => {
     return matchesSearch && matchesFilter;
   });
 
+  // Logo management functions
+  const handleLogoUpload = (teamId, file) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setTeamLogos(prev => ({
+          ...prev,
+          [teamId]: e.target.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = (teamId) => {
+    setTeamLogos(prev => {
+      const newLogos = { ...prev };
+      delete newLogos[teamId];
+      return newLogos;
+    });
+  };
+
+  const openLogoManager = (sport) => {
+    setSelectedTeamForLogo(sport);
+    setShowLogoManager(true);
+  };
+
+  // Logout function
+  const handleLogout = async () => {
+    try {
+      await superAdminAPIService.logout();
+      navigate('/superadmin/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if logout fails, navigate to login
+      navigate('/superadmin/login');
+    }
+  };
+
   const StatCard = ({ icon: Icon, title, value, subtitle, color, trend }) => (
     <div className="relative group">
       <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 via-violet-500/20 to-emerald-500/20 rounded-2xl blur-sm opacity-75 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -176,7 +356,9 @@ const SportsDashboard = () => {
             </div>
           )}
         </div>
-        <h3 className="mb-1 text-2xl font-bold text-white md:text-3xl">{value.toLocaleString()}</h3>
+        <h3 className="mb-1 text-2xl font-bold text-white md:text-3xl">
+          {(value || 0).toLocaleString()}
+        </h3>
         <p className="text-sm font-medium text-white/60">{title}</p>
         {subtitle && <p className="mt-1 text-xs text-white/40">{subtitle}</p>}
       </div>
@@ -250,16 +432,64 @@ const SportsDashboard = () => {
           {selectedSport?.id === sport.id && sport.name !== 'Cricket' && (
             <div className="mt-4 p-4 bg-white/[0.02] rounded-xl border border-white/10 animate-slide-in">
               <p className="mb-3 text-sm text-white/80">{sport.description}</p>
-              <div className="flex items-center space-x-2 text-xs text-white/60">
-                <Calendar className="w-3 h-3" />
-                <span>{sport.nextMatch}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-xs text-white/60">
+                  <Calendar className="w-3 h-3" />
+                  <span>{sport.nextMatch}</span>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openLogoManager(sport);
+                  }}
+                  className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-blue-500/20 to-violet-500/20 rounded-lg border border-blue-500/30 text-blue-400 hover:from-blue-500/30 hover:to-violet-500/30 transition-all duration-300 text-xs"
+                >
+                  <Camera className="w-3 h-3" />
+                  <span>Manage Team Logos</span>
+                </button>
               </div>
             </div>
           )}
 
           {sport.name === 'Cricket' && (
-            <div className="mt-4 p-3 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl border border-green-500/20">
-              <p className="text-sm text-green-400 font-medium">Click to manage cricket teams and players</p>
+            <div className="mt-4 space-y-3">
+              <div className="p-3 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl border border-green-500/20">
+                <p className="text-sm text-green-400 font-medium mb-2">Click to manage cricket teams and players</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-white">{sport.teams}</div>
+                    <div className="text-xs text-white/60">Active Teams</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-white">{sport.players}</div>
+                    <div className="text-xs text-white/60">Total Players</div>
+                  </div>
+                </div>
+                {sport.teamList && sport.teamList.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <div className="text-xs text-green-300 font-medium">Recent Teams:</div>
+                    {sport.teamList.slice(0, 3).map(team => (
+                      <div key={team.id} className="flex items-center justify-between text-xs text-white/70">
+                        <span>{team.name}</span>
+                        <span className="text-green-400">{team.playerCount || 0} players</span>
+                      </div>
+                    ))}
+                    {sport.teamList.length > 3 && (
+                      <div className="text-xs text-white/50">+{sport.teamList.length - 3} more teams</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openLogoManager(sport);
+                }}
+                className="w-full flex items-center justify-center space-x-2 p-2 bg-gradient-to-r from-blue-500/10 to-violet-500/10 rounded-xl border border-blue-500/20 text-blue-400 hover:from-blue-500/20 hover:to-violet-500/20 transition-all duration-300 text-sm"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Manage Team Logos</span>
+              </button>
             </div>
           )}
         </div>
@@ -272,6 +502,22 @@ const SportsDashboard = () => {
       ref={containerRef} 
       className="relative w-full min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"
     >
+      {/* Show loading spinner while data is loading */}
+      {loading && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50">
+          <div className="relative">
+            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/30 to-violet-500/30 rounded-3xl blur-xl animate-pulse"></div>
+            <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 mb-4 animate-spin">
+                <Cpu className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Loading Dashboard</h3>
+              <p className="text-white/70">Fetching latest tournament data...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic background overlay */}
       <div 
         className="fixed inset-0 transition-all duration-1000 pointer-events-none opacity-20 md:opacity-30"
@@ -373,7 +619,10 @@ const SportsDashboard = () => {
                     <button className="p-3 bg-white/[0.05] border border-white/10 rounded-xl hover:bg-white/[0.1] transition-all duration-300 hover:scale-110">
                       <Settings className="w-5 h-5 text-white/70" />
                     </button>
-                    <button className="flex items-center px-4 py-2 space-x-2 transition-all duration-300 border bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-500/30 rounded-xl hover:from-red-500/30 hover:to-red-600/30">
+                    <button 
+                      onClick={handleLogout}
+                      className="flex items-center px-4 py-2 space-x-2 transition-all duration-300 border bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-500/30 rounded-xl hover:from-red-500/30 hover:to-red-600/30"
+                    >
                       <LogOut className="w-4 h-4 text-red-400" />
                       <span className="font-medium text-red-400">Logout</span>
                     </button>
@@ -496,23 +745,121 @@ const SportsDashboard = () => {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Footer */}
-        <div className="text-center">
-          <div className="inline-flex items-center space-x-4 px-6 py-3 bg-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10">
-            <div className="flex items-center space-x-2">
-              <Trophy className="w-5 h-5 text-emerald-400 animate-pulse" />
-              <span className="font-semibold text-white/80">Sports Command Center</span>
-            </div>
-            <div className="w-px h-6 bg-white/20"></div>
-            <div className="flex items-center space-x-2 text-sm text-white/60">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></div>
-              <span>Enterprise Ready</span>
+      {/* Team Logo Management Modal */}
+      {showLogoManager && selectedTeamForLogo && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4">
+          <div className="relative">
+            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/30 to-violet-500/30 rounded-3xl blur-xl animate-pulse"></div>
+            <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center space-x-4">
+                  <div className={`p-3 rounded-2xl bg-gradient-to-r ${selectedTeamForLogo.color}`}>
+                    <Camera className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-white">Team Logo Manager</h2>
+                    <p className="text-white/70">{selectedTeamForLogo.name} - Upload team logos</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowLogoManager(false)}
+                  className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-300"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {selectedTeamForLogo.teamList?.map((team) => (
+                  <div key={team.id} className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-violet-500/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+                    <div className="relative bg-white/[0.05] backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-white/20 transition-all duration-300">
+                      
+                      {/* Team Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-bold text-white">{team.name}</h3>
+                          <p className="text-sm text-white/60">{team.shortName}</p>
+                        </div>
+                        <div className="text-2xl">{selectedTeamForLogo.icon}</div>
+                      </div>
+
+                      {/* Logo Display Area */}
+                      <div className="relative mb-4">
+                        <div className="w-full h-32 bg-white/[0.02] border-2 border-dashed border-white/20 rounded-xl flex items-center justify-center overflow-hidden">
+                          {teamLogos[team.id] ? (
+                            <div className="relative w-full h-full">
+                              <img 
+                                src={teamLogos[team.id]} 
+                                alt={`${team.name} logo`}
+                                className="w-full h-full object-contain"
+                              />
+                              <button
+                                onClick={() => handleRemoveLogo(team.id)}
+                                className="absolute top-2 right-2 p-1 bg-red-500/80 hover:bg-red-500 rounded-full transition-all duration-300"
+                              >
+                                <Trash2 className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <ImageIcon className="w-8 h-8 text-white/30 mx-auto mb-2" />
+                              <p className="text-sm text-white/40">No logo uploaded</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Upload Button */}
+                      <div className="space-y-3">
+                        <label className="block">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) handleLogoUpload(team.id, file);
+                            }}
+                            className="hidden"
+                          />
+                          <div className="flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-blue-500/20 to-violet-500/20 border border-blue-500/30 rounded-xl text-blue-400 hover:from-blue-500/30 hover:to-violet-500/30 cursor-pointer transition-all duration-300">
+                            <Upload className="w-4 h-4" />
+                            <span className="font-medium">
+                              {teamLogos[team.id] ? 'Change Logo' : 'Upload Logo'}
+                            </span>
+                          </div>
+                        </label>
+
+                        {teamLogos[team.id] && (
+                          <button
+                            onClick={() => handleRemoveLogo(team.id)}
+                            className="w-full flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl text-red-400 hover:from-red-500/30 hover:to-red-600/30 transition-all duration-300"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="font-medium">Remove Logo</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => setShowLogoManager(false)}
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl text-white font-bold hover:from-green-600 hover:to-blue-700 transition-all duration-300"
+                >
+                  <Save className="w-5 h-5" />
+                  <span>Save Changes</span>
+                </button>
+              </div>
             </div>
           </div>
-          <p className="mt-3 text-sm text-white/40">Powered by Next-Gen Tournament Management Technology</p>
         </div>
-      </div>
+      )}
 
       {/* CSS Animations */}
       <style jsx>{`

@@ -4,11 +4,18 @@ import AdminSportsOverview from "./features/admin/pages/AdminSportsOverview.jsx"
 import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.jsx";
 import SuperAdminSportsOverview from "./features/SuperAdmin/Pages/SuperAdminSportsOverview.jsx";
 import CricketManagement from "./features/cricket/components/CricketManagement.jsx";
+import APIConnectionTest from "./components/APIConnectionTest.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import SuperAdminDebug from "./components/SuperAdminDebug.jsx";
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/admin/login" replace />} />
+      <Route path="/" element={<Navigate to="/superadmin/login" replace />} />
+
+      {/* API Connection Test */}
+      <Route path="/test-connection" element={<APIConnectionTest />} />
+      <Route path="/debug" element={<SuperAdminDebug />} />
 
       {/* Admin */}
       <Route path="/admin/login" element={<AdminLogin />} />
@@ -16,8 +23,15 @@ function App() {
 
       {/* Super Admin - now with particle text effect */}
       <Route path="/superadmin/login" element={<SuperAdminEntry />} />
-      <Route path="/superadmin/sports" element={<SuperAdminSportsOverview />} />
-      <Route path="/superadmin/dashboard" element={<SuperAdminSportsOverview />} />
+      <Route path="/superadmin/sports" element={
+     
+          <SuperAdminSportsOverview />
+      } />
+      <Route path="/superadmin/dashboard" element={
+        <ProtectedRoute>
+          <SuperAdminSportsOverview />
+        </ProtectedRoute>
+      } />
 
       {/* Cricket Management */}
       <Route path="/cricket-management" element={<CricketManagement />} />

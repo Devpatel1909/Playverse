@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Plus, 
@@ -18,9 +19,22 @@ import {
   TrendingUp,
   User,
   Mail,
-  Phone
+  Phone,
+  Camera,
+  Upload,
+  Image,
+  Edit3,
+  Trash2,
+  BarChart3,
+  TrendingDown,
+  UserPlus,
+  X,
+  Edit2,
+  RefreshCw,
+  Loader
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import cricketAPIService from '../../../services/cricketAPI';
 
 const CricketManagement = () => {
   const navigate = useNavigate();
@@ -29,57 +43,144 @@ const CricketManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const [playerPhotos, setPlayerPhotos] = useState({});
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [selectedPlayerForPhoto, setSelectedPlayerForPhoto] = useState(null);
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [teams, setTeams] = useState([
-    {
-      id: 1,
-      name: 'CSPIT Warriors',
-      shortName: 'CSPIT',
-      captain: 'Rajesh Patel',
-      coach: 'Amit Shah',
-      established: '2020',
-      homeGround: 'CSPIT Cricket Ground',
-      contactEmail: 'cspit.cricket@example.com',
-      contactPhone: '+91 98765 43210',
-      players: [
-        { id: 1, name: 'Rajesh Patel', role: 'Captain/Batsman', age: 24, matches: 45, runs: 1250 },
-        { id: 2, name: 'Suresh Kumar', role: 'Bowler', age: 22, matches: 40, wickets: 65 },
-        { id: 3, name: 'Vikram Singh', role: 'All-rounder', age: 23, matches: 42, runs: 890, wickets: 35 }
-      ]
-    },
-    {
-      id: 2,
-      name: 'DEPSTAR Champions',
-      shortName: 'DEPSTAR',
-      captain: 'Arjun Mehta',
-      coach: 'Ravi Jadeja',
-      established: '2019',
-      homeGround: 'DEPSTAR Sports Complex',
-      contactEmail: 'depstar.cricket@example.com',
-      contactPhone: '+91 87654 32109',
-      players: [
-        { id: 4, name: 'Arjun Mehta', role: 'Captain/Wicket Keeper', age: 25, matches: 50, runs: 1450 },
-        { id: 5, name: 'Kiran Patel', role: 'Fast Bowler', age: 21, matches: 35, wickets: 48 },
-        { id: 6, name: 'Rohit Sharma', role: 'Batsman', age: 24, matches: 38, runs: 1100 }
-      ]
-    },
-    {
-      id: 3,
-      name: 'AMPICE Tigers',
-      shortName: 'AMPICE',
-      captain: 'Dev Patel',
-      coach: 'Mahendra Singh',
-      established: '2021',
-      homeGround: 'AMPICE Cricket Arena',
-      contactEmail: 'ampice.cricket@example.com',
-      contactPhone: '+91 76543 21098',
-      players: [
-        { id: 7, name: 'Dev Patel', role: 'Captain/All-rounder', age: 23, matches: 35, runs: 950, wickets: 28 },
-        { id: 8, name: 'Harsh Shah', role: 'Spinner', age: 22, matches: 30, wickets: 42 },
-        { id: 9, name: 'Nitin Kumar', role: 'Batsman', age: 24, matches: 33, runs: 1050 }
-      ]
+  // Load teams from MongoDB via API
+  const loadTeamsFromAPI = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await cricketAPIService.getAllTeams();
+      
+      if (response.success && response.data) {
+        setTeams(response.data);
+        
+        // Also update localStorage for compatibility
+        localStorage.setItem('cricketTeams', JSON.stringify(response.data));
+        window.dispatchEvent(new CustomEvent('cricketTeamsUpdated'));
+      } else {
+        // If API fails, try to load from localStorage as fallback
+        const fallbackTeams = loadTeamsFromLocalStorage();
+        setTeams(fallbackTeams);
+        setError('Connected to local data. Some features may be limited without backend connection.');
+      }
+    } catch (error) {
+      console.error('Failed to load teams from API:', error);
+      
+      // Fallback to localStorage
+      const fallbackTeams = loadTeamsFromLocalStorage();
+      setTeams(fallbackTeams);
+      setError(`Backend connection failed: ${error.message}. Using local data.`);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  // Fallback method to load from localStorage
+  const loadTeamsFromLocalStorage = () => {
+    try {
+      const storedTeams = localStorage.getItem('cricketTeams');
+      if (storedTeams) {
+        return JSON.parse(storedTeams);
+      }
+    } catch (error) {
+      console.warn('Error loading teams from localStorage:', error);
+    }
+    
+    // Return default teams if nothing in localStorage
+    return [
+      {
+        id: 1,
+        name: 'CSPIT Warriors',
+        shortName: 'CSPIT',
+        captain: 'Rajesh Patel',
+        coach: 'Amit Shah',
+        established: '2020',
+        homeGround: 'CSPIT Cricket Ground',
+        contactEmail: 'cspit.cricket@example.com',
+        contactPhone: '+91 98765 43210',
+        players: [
+          { 
+            id: 1, 
+            name: 'Rajesh Patel', 
+            role: 'Captain/Batsman', 
+            age: 24, 
+            matches: 45, 
+            runs: 1250, 
+            wickets: 2, 
+            catches: 15, 
+            average: 28.4, 
+            strikeRate: 128.5,
+            contactPhone: '+91 98765 43210',
+            contactEmail: 'rajesh.patel@example.com',
+            experience: '5 years',
+            jerseyNumber: 1
+          }
+        ]
+      }
+    ];
+  };
+
+  // Load teams on component mount
+  useEffect(() => {
+    loadTeamsFromAPI();
+  }, []);
+
+  // Save teams to MongoDB and localStorage
+  const saveTeamsToStorage = async (newTeams) => {
+    try {
+      // Save to localStorage first (immediate)
+      localStorage.setItem('cricketTeams', JSON.stringify(newTeams));
+      window.dispatchEvent(new CustomEvent('cricketTeamsUpdated'));
+    } catch (error) {
+      console.error('Error saving teams to localStorage:', error);
+    }
+  };
+
+  // Update player statistics
+  const updatePlayerStats = (playerId) => {
+    const newRuns = Math.floor(Math.random() * 50) + 20; // Random runs between 20-69
+    const newWickets = Math.floor(Math.random() * 3) + 1; // Random wickets between 1-3
+    const newCatches = Math.floor(Math.random() * 2) + 1; // Random catches between 1-2
+
+    const updatedTeams = teams.map(team => ({
+      ...team,
+      players: team.players.map(player => 
+        player.id === playerId 
+          ? {
+              ...player,
+              matches: (player.matches || 0) + 1,
+              runs: (player.runs || 0) + newRuns,
+              wickets: (player.wickets || 0) + newWickets,
+              catches: (player.catches || 0) + newCatches,
+              average: ((player.runs || 0) + newRuns) / ((player.matches || 0) + 1),
+              strikeRate: Math.min(200, ((player.strikeRate || 100) + Math.random() * 20 - 10)) // Slight variation
+            }
+          : player
+      )
+    }));
+
+    setTeams(updatedTeams);
+    
+    // Update selectedTeam if it's currently being viewed
+    if (selectedTeam) {
+      const updatedSelectedTeam = updatedTeams.find(t => t.id === selectedTeam.id);
+      setSelectedTeam(updatedSelectedTeam);
+    }
+    
+    // Show success message
+    const updatedPlayer = updatedTeams
+      .flatMap(team => team.players)
+      .find(p => p.id === playerId);
+    
+    alert(`📊 Stats Updated!\n\n${updatedPlayer.name} performance updated:\n+${newRuns} runs\n+${newWickets} wickets\n+${newCatches} catches\n\nTotal Matches: ${updatedPlayer.matches}\nTotal Runs: ${updatedPlayer.runs}\nAverage: ${updatedPlayer.average?.toFixed(1)}`);
+  };
 
   const [newTeam, setNewTeam] = useState({
     name: '',
@@ -106,55 +207,158 @@ const CricketManagement = () => {
     team.shortName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddTeam = () => {
-    if (!newTeam.name || !newTeam.shortName) return;
-    
-    const team = {
-      ...newTeam,
-      id: teams.length + 1,
-      players: []
-    };
-    
-    setTeams([...teams, team]);
-    setNewTeam({
-      name: '',
-      shortName: '',
-      captain: '',
-      coach: '',
-      homeGround: '',
-      contactEmail: '',
-      contactPhone: '',
-      established: new Date().getFullYear().toString()
-    });
-    setShowAddTeamModal(false);
+  // Photo management functions
+  const handlePhotoUpload = (playerId, file) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPlayerPhotos(prev => ({
+          ...prev,
+          [playerId]: e.target.result
+        }));
+        setShowPhotoModal(false);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleAddPlayer = () => {
-    if (!newPlayer.name || !newPlayer.role || !selectedTeam) return;
-    
-    const player = {
-      ...newPlayer,
-      id: Date.now(),
-      matches: 0,
-      runs: 0,
-      wickets: 0
-    };
-    
-    setTeams(teams.map(team => 
-      team.id === selectedTeam.id 
-        ? { ...team, players: [...team.players, player] }
-        : team
-    ));
-    
-    setNewPlayer({
-      name: '',
-      role: '',
-      age: '',
-      contactPhone: '',
-      contactEmail: '',
-      experience: ''
+  const openPhotoModal = (player) => {
+    setSelectedPlayerForPhoto(player);
+    setShowPhotoModal(true);
+  };
+
+  const handleRemovePhoto = (playerId) => {
+    setPlayerPhotos(prev => {
+      const newPhotos = { ...prev };
+      delete newPhotos[playerId];
+      return newPhotos;
     });
-    setShowAddPlayerModal(false);
+  };
+
+  const handleAddTeam = async () => {
+    if (!newTeam.name || !newTeam.shortName || !newTeam.contactEmail || !newTeam.contactPhone) {
+      alert('❌ Please fill in all required fields (Name, Short Name, Contact Email, and Contact Phone)');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Validate team data
+      cricketAPIService.validateTeamData(newTeam);
+      
+      // Create team via API
+      const response = await cricketAPIService.createTeam(newTeam);
+      
+      if (response.success && response.data) {
+        // Add to local state
+        const updatedTeams = [...teams, response.data];
+        setTeams(updatedTeams);
+        await saveTeamsToStorage(updatedTeams);
+        
+        // Reset form
+        setNewTeam({
+          name: '',
+          shortName: '',
+          captain: '',
+          coach: '',
+          homeGround: '',
+          contactEmail: '',
+          contactPhone: '',
+          established: new Date().getFullYear().toString()
+        });
+        setShowAddTeamModal(false);
+        
+        // Success feedback
+        setTimeout(() => {
+          alert(`✅ Team Created Successfully in Database!\n\n${response.data.name} has been saved to MongoDB!\nShort Name: ${response.data.shortName}\nTotal Teams: ${updatedTeams.length}\nTeam ID: ${response.data._id}`);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to create team:', error);
+      alert(`❌ Failed to Create Team\n\nError: ${error.message}\n\nPlease check your connection and try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPlayer = async () => {
+    if (!newPlayer.name || !newPlayer.role || !selectedTeam) {
+      alert('❌ Please fill in all required fields (Name and Role)');
+      return;
+    }
+    
+    // Check if team already has 15 players
+    if (selectedTeam.players && selectedTeam.players.length >= 15) {
+      alert('⚠️ Maximum Team Size Reached!\n\nEach team can have a maximum of 15 players. Please remove a player before adding a new one.');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Prepare player data for API
+      const playerData = {
+        name: newPlayer.name.trim(),
+        role: newPlayer.role,
+        age: parseInt(newPlayer.age) || 18,
+        jerseyNumber: (selectedTeam.players?.length || 0) + 1, // Auto-assign jersey number
+        contactPhone: newPlayer.contactPhone?.trim() || '',
+        contactEmail: newPlayer.contactEmail?.trim().toLowerCase() || '',
+        experience: newPlayer.experience?.trim() || '0 years',
+        matches: 0,
+        runs: 0,
+        wickets: 0,
+        catches: 0,
+        stumps: 0,
+        average: 0,
+        strikeRate: 0,
+        economy: 0
+      };
+      
+      // Validate player data
+      cricketAPIService.validatePlayerData(playerData);
+      
+      // Add player via API
+      const response = await cricketAPIService.addPlayer(selectedTeam._id || selectedTeam.id, playerData);
+      
+      if (response.success && response.data) {
+        // Update teams list with the updated team from API
+        const updatedTeams = teams.map(team => 
+          (team._id || team.id) === (selectedTeam._id || selectedTeam.id) 
+            ? response.data.team 
+            : team
+        );
+        
+        setTeams(updatedTeams);
+        await saveTeamsToStorage(updatedTeams);
+        
+        // Update selectedTeam state
+        setSelectedTeam(response.data.team);
+        
+        // Reset form
+        setNewPlayer({
+          name: '',
+          role: '',
+          age: '',
+          contactPhone: '',
+          contactEmail: '',
+          experience: ''
+        });
+        setShowAddPlayerModal(false);
+        
+        // Success feedback
+        setTimeout(() => {
+          const addedPlayer = response.data.player;
+          alert(`✅ Player Added Successfully to Database!\n\n${addedPlayer.name} has been saved to MongoDB!\nTeam: ${response.data.team.name}\nJersey Number: #${addedPlayer.jerseyNumber}\nTeam Size: ${response.data.team.players.length}/15\nPlayer ID: ${addedPlayer._id}`);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to add player:', error);
+      alert(`❌ Failed to Add Player\n\nError: ${error.message}\n\nPlease check your data and try again.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const TeamCard = ({ team }) => {
@@ -291,19 +495,47 @@ const CricketManagement = () => {
           {/* Background decoration */}
           <div className="absolute top-0 right-0 w-32 h-32 -mt-16 -mr-16 rounded-full bg-gradient-to-bl from-white/5 to-transparent"></div>
           
-          {/* Header */}
+          {/* Header with photo */}
           <div className="relative flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className={`p-3 rounded-xl bg-gradient-to-r ${getRoleColor(player.role)} shadow-lg group-hover:rotate-12 transition-transform duration-500`}>
-                <RoleIcon className="w-5 h-5 text-white" />
+              {/* Player Photo */}
+              <div className="relative">
+                <div className="w-16 h-16 overflow-hidden border-2 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 border-white/20">
+                  {playerPhotos[player.id] ? (
+                    <img 
+                      src={playerPhotos[player.id]} 
+                      alt={player.name}
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <User className="w-8 h-8 text-white/40" />
+                    </div>
+                  )}
+                </div>
+                {/* Photo upload button */}
+                <button
+                  onClick={() => openPhotoModal(player)}
+                  className="absolute -bottom-1 -right-1 p-1.5 bg-blue-500 hover:bg-blue-600 rounded-full border-2 border-slate-800 transition-all duration-300 hover:scale-110"
+                >
+                  <Camera className="w-3 h-3 text-white" />
+                </button>
               </div>
-              <div>
+
+              <div className="flex-1">
                 <h4 className="text-lg font-bold text-white transition-all duration-300 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-green-400">
                   {player.name}
                 </h4>
                 <p className="text-sm font-medium text-white/70">{player.role}</p>
+                <div className="flex items-center mt-1 space-x-2">
+                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r ${getRoleColor(player.role)}/20 border ${getRoleColor(player.role)}/30`}>
+                    <RoleIcon className="inline w-3 h-3 mr-1" />
+                    <span className="text-white/80">{player.experience}</span>
+                  </div>
+                </div>
               </div>
             </div>
+            
             <div className="flex flex-col items-end">
               <div className="flex items-center mb-1 space-x-1">
                 <Star className="w-4 h-4 text-yellow-400 fill-current" />
@@ -315,8 +547,8 @@ const CricketManagement = () => {
             </div>
           </div>
           
-          {/* Stats grid */}
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          {/* Enhanced Stats Grid - Show all stats */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/20">
               <div className="flex items-center justify-center mb-1">
                 <Activity className="w-4 h-4 mr-1 text-blue-400" />
@@ -325,23 +557,55 @@ const CricketManagement = () => {
               <div className="text-xs font-medium text-white/60">Matches</div>
             </div>
             
-            {player.runs !== undefined && (
-              <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20">
-                <div className="flex items-center justify-center mb-1">
-                  <TrendingUp className="w-4 h-4 mr-1 text-green-400" />
-                  <div className="text-lg font-bold text-green-400">{player.runs}</div>
-                </div>
-                <div className="text-xs font-medium text-white/60">Runs</div>
+            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20">
+              <div className="flex items-center justify-center mb-1">
+                <TrendingUp className="w-4 h-4 mr-1 text-green-400" />
+                <div className="text-lg font-bold text-green-400">{player.runs || 0}</div>
+              </div>
+              <div className="text-xs font-medium text-white/60">Runs</div>
+            </div>
+            
+            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/20">
+              <div className="flex items-center justify-center mb-1">
+                <Target className="w-4 h-4 mr-1 text-purple-400" />
+                <div className="text-lg font-bold text-purple-400">{player.wickets || 0}</div>
+              </div>
+              <div className="text-xs font-medium text-white/60">Wickets</div>
+            </div>
+            
+            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/20">
+              <div className="flex items-center justify-center mb-1">
+                <Shield className="w-4 h-4 mr-1 text-orange-400" />
+                <div className="text-lg font-bold text-orange-400">{player.catches || 0}</div>
+              </div>
+              <div className="text-xs font-medium text-white/60">Catches</div>
+            </div>
+          </div>
+
+          {/* Performance Metrics */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {player.average && (
+              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border-cyan-500/20">
+                <div className="text-sm font-bold text-cyan-400">{player.average}</div>
+                <div className="text-xs text-white/60">Average</div>
               </div>
             )}
-            
-            {player.wickets !== undefined && (
-              <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/20">
-                <div className="flex items-center justify-center mb-1">
-                  <Target className="w-4 h-4 mr-1 text-purple-400" />
-                  <div className="text-lg font-bold text-purple-400">{player.wickets}</div>
-                </div>
-                <div className="text-xs font-medium text-white/60">Wickets</div>
+            {player.strikeRate && (
+              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-yellow-500/10 to-amber-600/10 border-yellow-500/20">
+                <div className="text-sm font-bold text-yellow-400">{player.strikeRate}</div>
+                <div className="text-xs text-white/60">Strike Rate</div>
+              </div>
+            )}
+            {player.economy && (
+              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-pink-500/10 to-rose-600/10 border-pink-500/20">
+                <div className="text-sm font-bold text-pink-400">{player.economy}</div>
+                <div className="text-xs text-white/60">Economy</div>
+              </div>
+            )}
+            {player.stumps && (
+              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-indigo-500/10 to-violet-600/10 border-indigo-500/20">
+                <div className="text-sm font-bold text-indigo-400">{player.stumps}</div>
+                <div className="text-xs text-white/60">Stumpings</div>
               </div>
             )}
           </div>
@@ -353,6 +617,13 @@ const CricketManagement = () => {
               <span className="text-sm font-medium text-green-400">Performance</span>
             </div>
             <div className="flex items-center space-x-1">
+              <button
+                onClick={() => updatePlayerStats(player.id)}
+                className="p-1 text-xs text-blue-400 transition-all duration-300 rounded bg-blue-500/20 hover:bg-blue-500/30"
+                title="Update Stats"
+              >
+                <Edit2 className="w-3 h-3" />
+              </button>
               {[1, 2, 3, 4, 5].map((star) => (
                 <Star key={star} className="w-3 h-3 text-yellow-400 fill-current" />
               ))}
@@ -457,12 +728,21 @@ const CricketManagement = () => {
                 
                 <button
                   onClick={() => activeView === 'teams' ? setShowAddTeamModal(true) : setShowAddPlayerModal(true)}
-                  className="relative flex items-center px-6 py-3 space-x-3 transition-all duration-300 transform shadow-2xl group bg-gradient-to-r from-green-500 via-emerald-600 to-blue-600 rounded-2xl hover:from-green-600 hover:via-emerald-700 hover:to-blue-700 hover:scale-105"
+                  disabled={activeView === 'team-details' && selectedTeam && selectedTeam.players.length >= 15}
+                  className={`relative flex items-center px-6 py-3 space-x-3 transition-all duration-300 transform shadow-2xl group rounded-2xl hover:scale-105 ${
+                    activeView === 'team-details' && selectedTeam && selectedTeam.players.length >= 15 
+                      ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60' 
+                      : 'bg-gradient-to-r from-green-500 via-emerald-600 to-blue-600 hover:from-green-600 hover:via-emerald-700 hover:to-blue-700'
+                  }`}
                 >
-                  <div className="absolute transition-opacity duration-300 opacity-50 -inset-1 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl blur group-hover:opacity-75"></div>
+                  <div className={`absolute transition-opacity duration-300 opacity-50 -inset-1 rounded-2xl blur group-hover:opacity-75 ${
+                    activeView === 'team-details' && selectedTeam && selectedTeam.players.length >= 15 
+                      ? 'bg-gradient-to-r from-gray-500 to-gray-600' 
+                      : 'bg-gradient-to-r from-green-500 to-blue-600'
+                  }`}></div>
                   <Plus className="relative w-5 h-5 text-white" />
                   <span className="relative font-semibold text-white">
-                    {activeView === 'teams' ? 'Create Team' : 'Add Player'}
+                    {activeView === 'teams' ? 'Create Team' : selectedTeam && selectedTeam.players.length >= 15 ? `Team Full (${selectedTeam.players.length}/15)` : `Add Player (${selectedTeam?.players.length || 0}/15)`}
                   </span>
                 </button>
               </div>
@@ -529,7 +809,12 @@ const CricketManagement = () => {
                   <div className="p-6 text-center border bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/20 rounded-2xl">
                     <Users className="w-8 h-8 mx-auto mb-3 text-orange-400" />
                     <h3 className="mb-2 text-sm font-medium text-orange-400">Squad Size</h3>
-                    <p className="text-lg font-bold text-white">{selectedTeam.players.length} Players</p>
+                    <p className={`text-lg font-bold ${selectedTeam.players.length >= 15 ? 'text-red-400' : selectedTeam.players.length >= 12 ? 'text-yellow-400' : 'text-white'}`}>
+                      {selectedTeam.players.length}/15 Players
+                    </p>
+                    {selectedTeam.players.length >= 15 && (
+                      <p className="mt-1 text-xs text-red-300">Maximum Reached</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -544,9 +829,20 @@ const CricketManagement = () => {
                     Elite Squad Members
                   </span>
                 </h2>
-                <div className="flex items-center space-x-3 text-white/70">
-                  <Activity className="w-5 h-5" />
-                  <span className="font-medium">{selectedTeam.players.length} Active Players</span>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-2 text-white/70">
+                    <Activity className="w-5 h-5" />
+                    <span className="font-medium">{selectedTeam.players.length} Active Players</span>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    selectedTeam.players.length >= 15 
+                      ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
+                      : selectedTeam.players.length >= 12 
+                        ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                        : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                  }`}>
+                    {selectedTeam.players.length}/15 Squad Limit
+                  </div>
                 </div>
               </div>
               
@@ -652,6 +948,32 @@ const CricketManagement = () => {
                       />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <label className="block mb-3 text-sm font-semibold text-rose-400">Contact Email *</label>
+                    <div className="relative">
+                      <Mail className="absolute w-5 h-5 transform -translate-y-1/2 text-rose-400 left-3 top-1/2" />
+                      <input
+                        type="email"
+                        value={newTeam.contactEmail}
+                        onChange={(e) => setNewTeam({...newTeam, contactEmail: e.target.value})}
+                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-rose-400 focus:outline-none"
+                        placeholder="team@example.com"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block mb-3 text-sm font-semibold text-indigo-400">Contact Phone *</label>
+                    <div className="relative">
+                      <Phone className="absolute w-5 h-5 text-indigo-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="tel"
+                        value={newTeam.contactPhone}
+                        onChange={(e) => setNewTeam({...newTeam, contactPhone: e.target.value})}
+                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex pt-6 space-x-4 border-t border-white/20">
@@ -682,13 +1004,28 @@ const CricketManagement = () => {
                 <div className="flex items-center justify-between mb-8">
                   <div className="flex items-center space-x-4">
                     <div className="p-3 bg-gradient-to-r from-purple-500 to-green-600 rounded-2xl">
-                      <UserPlus className="w-8 h-8 text-white" />
+                      <Users className="w-8 h-8 text-white" />
                     </div>
                     <div>
                       <h2 className="text-3xl font-bold text-white">Add Elite Player</h2>
                       <p className="text-white/70">Recruit to {selectedTeam.name}</p>
+                      <div className={`mt-2 px-3 py-1 rounded-full text-sm font-medium inline-block ${
+                        selectedTeam.players.length >= 15 
+                          ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
+                          : selectedTeam.players.length >= 12 
+                            ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                            : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                      }`}>
+                        Current Squad: {selectedTeam.players.length}/15 Players
+                      </div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setShowAddPlayerModal(false)}
+                    className="p-2 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/10 rounded-xl"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
                 </div>
                 
                 <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
@@ -777,12 +1114,43 @@ const CricketManagement = () => {
                   </div>
                 </div>
                 
+                {/* Team Size Warning */}
+                {selectedTeam.players.length >= 12 && (
+                  <div className={`mt-6 p-4 rounded-xl border ${
+                    selectedTeam.players.length >= 15 
+                      ? 'bg-red-500/10 border-red-500/30 text-red-200'
+                      : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
+                  }`}>
+                    <div className="flex items-center space-x-3">
+                      <Shield className="w-5 h-5" />
+                      <div>
+                        {selectedTeam.players.length >= 15 ? (
+                          <div>
+                            <h4 className="font-semibold">Maximum Squad Size Reached!</h4>
+                            <p className="text-sm opacity-80">This team already has 15 players (maximum allowed). Remove a player before adding new ones.</p>
+                          </div>
+                        ) : (
+                          <div>
+                            <h4 className="font-semibold">Approaching Squad Limit</h4>
+                            <p className="text-sm opacity-80">Only {15 - selectedTeam.players.length} more player(s) can be added to reach the 15-player limit.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex pt-6 space-x-4 border-t border-white/20">
                   <button
                     onClick={handleAddPlayer}
-                    className="flex-1 py-4 text-lg font-bold text-white transition-all duration-300 transform shadow-2xl bg-gradient-to-r from-purple-500 via-pink-600 to-green-600 rounded-2xl hover:from-purple-600 hover:via-pink-700 hover:to-green-700 hover:scale-105"
+                    disabled={selectedTeam.players.length >= 15}
+                    className={`flex-1 py-4 text-lg font-bold text-white transition-all duration-300 transform shadow-2xl rounded-2xl hover:scale-105 ${
+                      selectedTeam.players.length >= 15
+                        ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60'
+                        : 'bg-gradient-to-r from-purple-500 via-pink-600 to-green-600 hover:from-purple-600 hover:via-pink-700 hover:to-green-700'
+                    }`}
                   >
-                    Recruit Elite Player
+                    {selectedTeam.players.length >= 15 ? 'Squad Full - Cannot Add' : 'Recruit Elite Player'}
                   </button>
                   <button
                     onClick={() => setShowAddPlayerModal(false)}

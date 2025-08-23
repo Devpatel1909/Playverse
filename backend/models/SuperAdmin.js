@@ -9,6 +9,6 @@ const SuperAdminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-SuperAdminSchema.index({ email: 1 }, { unique: true });
+// Email already has unique index from schema definition
 
 module.exports = mongoose.model('SuperAdmin', SuperAdminSchema);

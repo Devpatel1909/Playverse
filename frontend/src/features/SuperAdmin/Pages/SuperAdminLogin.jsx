@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Mail, Lock, Shield, Trophy, Zap, Star, Crown, Award, Target, Activity, ArrowRight, CheckCircle2, AlertCircle, Sparkles, Globe, Cpu, Database, BarChart3, Menu, X } from 'lucide-react';
+import superAdminAPIService from '../../../services/superAdminAPI';
 
 const UltraModernsuperAdminAuth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -149,48 +150,46 @@ const UltraModernsuperAdminAuth = () => {
     setIsLoading(true);
     
     try {
-      const endpoint = isLogin ? '/api/superadmin/login' : '/api/superadmin/register';
-      const payload = isLogin 
-        ? { email: formData.email, password: formData.password }
-        : {
-            superadminName: formData.superadminName,
-            email: formData.email,
-            password: formData.password
-          };
-
-      const response = await fetch(`http://localhost:5000${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setShowSuccessAnimation(true);
-        setTimeout(() => {
-          if (isLogin) {
-            navigate('/superadmin/sports');
-          } else {
-            alert('✨ superAdmin account created successfully! Welcome to the team!');
-            setIsLogin(true);
-            setFormData({
-              email: '',
-              password: '',
-              confirmPassword: '',
-              superadminName: ''
-            });
-          }
+      if (isLogin) {
+        // Use the SuperAdmin API service for login
+        console.log('Attempting login with:', formData.email);
+        const result = await superAdminAPIService.login(formData.email, formData.password);
+        console.log('Login result:', result);
+        
+        if (result.success) {
+          console.log('Login successful, navigating immediately...');
+          navigate('/superadmin/sports');
           setIsLoading(false);
-          setShowSuccessAnimation(false);
-        }, 1500);
+        } else {
+          console.error('Login failed:', result.message);
+          alert(`Login failed: ${result.message}`);
+        }
       } else {
-        throw new Error(result.message || 'Operation failed');
+        // For registration, use the API service
+        const adminData = {
+          username: formData.superadminName.toLowerCase().replace(/\s+/g, '_'),
+          email: formData.email,
+          password: formData.password,
+          fullName: formData.superadminName
+        };
+        
+        const result = await superAdminAPIService.createSuperAdmin(adminData);
+        
+        if (result.success) {
+          alert('✨ SuperAdmin account created successfully! Please login with your credentials.');
+          setIsLogin(true);
+          setFormData({
+            email: adminData.email, // Keep the email for easier login
+            password: '',
+            confirmPassword: '',
+            superadminName: ''
+          });
+          setIsLoading(false);
+        }
       }
     } catch (error) {
       setIsLoading(false);
+      console.error('Authentication error:', error);
       alert(`Error: ${error.message}`);
     }
   };
@@ -222,11 +221,11 @@ const UltraModernsuperAdminAuth = () => {
   };
 
   return (
-    <div ref={containerRef} className="relative w-full min-h-screen">
+    <div ref={containerRef} className="absolute inset-0 min-h-screen">
       {/* Ultra-modern animated background - Full Screen */}
-      <div className="absolute inset-0 w-full h-full">
+      <div className="absolute inset-0 flex items-center justify-center w-full h-full">
         {/* Base gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"></div>
+        <div className="absolute inset-0 h-auto bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"></div>
         
         {/* Dynamic mesh gradient - optimized for mobile */}
         <div 
