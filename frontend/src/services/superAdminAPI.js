@@ -1,9 +1,14 @@
 // SuperAdmin API Service for Frontend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Normalize base URL so user can specify with or without trailing /api
+const RAW_SUPERADMIN_API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = /\/api\/?$/.test(RAW_SUPERADMIN_API)
+  ? RAW_SUPERADMIN_API.replace(/\/$/, '')
+  : RAW_SUPERADMIN_API.replace(/\/$/, '') + '/api';
 
 class SuperAdminAPIService {
   constructor() {
-    this.baseURL = `${API_BASE_URL}/superadmin`;
+  this.baseURL = `${API_BASE_URL}/superadmin`;
+  if (import.meta.env.DEV) console.debug('[SuperAdminAPI] baseURL:', this.baseURL);
   }
 
   // Helper method to get auth token
@@ -46,7 +51,9 @@ class SuperAdminAPIService {
   // Authentication APIs
   async login(email, password) {
     try {
-      const response = await fetch(`${this.baseURL}/login`, {
+  const url = `${this.baseURL}/login`;
+  if (import.meta.env.DEV) console.debug('[SuperAdminAPI] POST', url);
+  const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -57,7 +64,7 @@ class SuperAdminAPIService {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+  throw new Error(data.message || `Login failed (status ${response.status})`);
       }
       
       // Store token and user data
@@ -75,7 +82,7 @@ class SuperAdminAPIService {
         message: data.message || 'Login successful'
       };
     } catch (error) {
-      console.error('Login failed:', error);
+  console.error('Login failed:', error);
       throw error;
     }
   }

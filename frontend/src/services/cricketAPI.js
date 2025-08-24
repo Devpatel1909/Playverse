@@ -1,5 +1,9 @@
 // Cricket API Service for Frontend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Normalize base URL so whether user sets http://localhost:5000 or http://localhost:5000/api it works.
+const RAW_API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = /\/api\/?$/.test(RAW_API_BASE)
+  ? RAW_API_BASE.replace(/\/$/, '')
+  : RAW_API_BASE.replace(/\/$/, '') + '/api';
 
 class CricketAPIService {
   constructor() {
@@ -38,14 +42,16 @@ class CricketAPIService {
 
   // Team Management APIs
   async getAllTeams() {
+    const url = `${this.baseURL}/teams`;
     try {
-      const response = await fetch(`${this.baseURL}/teams`, {
+      if (import.meta.env.DEV) console.debug('[CricketAPI] GET', url);
+      const response = await fetch(url, {
         method: 'GET',
         headers: this.getHeaders()
       });
       return await this.handleResponse(response);
     } catch (error) {
-      console.error('Failed to fetch teams:', error);
+      console.error('Failed to fetch teams:', error, 'URL:', url);
       throw error;
     }
   }
@@ -248,6 +254,30 @@ class CricketAPIService {
     }
 
     return true;
+  }
+
+  validateSubadminData(data) {
+    if (!data || !data.username || !data.password) {
+      throw new Error('Subadmin username & password required');
+    }
+    if (data.password.length < 6) throw new Error('Password min 6 chars');
+    return true;
+  }
+
+  async createSubadmin(teamId, creds) {
+    try {
+      const res = await fetch(`${this.baseUrl}/cricket/teams/${teamId}/subadmins`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(this.authHeader||{}) },
+        body: JSON.stringify(creds)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data;
+    } catch (e) {
+      console.warn('Subadmin API failed, fallback local:', e.message);
+      return { success: false, error: e.message };
+    }
   }
 }
 

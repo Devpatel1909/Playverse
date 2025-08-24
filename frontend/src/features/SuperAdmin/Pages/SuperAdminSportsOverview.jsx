@@ -1,9 +1,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Trophy, Users, Calendar, CheckCircle2, TrendingUp, Activity, Target, Award, Globe, Cpu, Database, BarChart3, Crown, Sparkles, Menu, X, Search, Filter, Bell, Settings, LogOut, Home, ChevronRight, Play, Pause, RotateCcw, Eye, Upload, ImageIcon, Edit3, Trash2, Save, Camera } from 'lucide-react';
+import { Trophy, Users, Calendar, CheckCircle2, TrendingUp, Activity, Target, Award, Globe, Cpu, Database, BarChart3, Sparkles, X, Search, Bell, Settings, LogOut, ChevronRight, Upload, ImageIcon, Trash2, Save, Camera } from 'lucide-react';
 import superAdminAPIService from '../../../services/superAdminAPI';
-import cricketAPIService from '../../../services/cricketAPI';
 
 const SportsDashboard = () => {
   const navigate = useNavigate();
@@ -11,11 +10,9 @@ const SportsDashboard = () => {
   const [selectedSport, setSelectedSport] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActive, setFilterActive] = useState('all');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showLogoManager, setShowLogoManager] = useState(false);
   const [selectedTeamForLogo, setSelectedTeamForLogo] = useState(null);
   const [teamLogos, setTeamLogos] = useState({});
-  const [loading, setLoading] = useState(true);
   const [dashboardStats, setDashboardStats] = useState({
     totalPlayers: 0,
     totalSports: 0,
@@ -24,7 +21,6 @@ const SportsDashboard = () => {
     activeMatches: 0,
     upcomingMatches: 0
   });
-  const [cricketTeams, setCricketTeams] = useState([]);
   // Get cricket data from localStorage or use default
   const getCricketData = () => {
     try {
@@ -219,8 +215,6 @@ const SportsDashboard = () => {
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        setLoading(true);
-        
         console.log('Loading dashboard data...');
 
         // Refresh cricket data from localStorage
@@ -239,8 +233,6 @@ const SportsDashboard = () => {
 
       } catch (error) {
         console.error('Error loading dashboard data:', error);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -270,10 +262,16 @@ const SportsDashboard = () => {
     };
   }, [refreshCricketData]);
 
-  // Mouse tracking effect
+  // Optimized mouse tracking with throttling
   useEffect(() => {
     let animationFrameId;
+    let lastUpdate = 0;
+    const throttleDelay = 100; // Update every 100ms instead of every frame
+    
     const handleMouseMove = (e) => {
+      const now = Date.now();
+      if (now - lastUpdate < throttleDelay) return;
+      
       if (window.innerWidth >= 768) {
         const container = containerRef.current;
         if (container) {
@@ -281,14 +279,13 @@ const SportsDashboard = () => {
           const x = ((e.clientX - rect.left) / rect.width) * 100;
           const y = ((e.clientY - rect.top) / rect.height) * 100;
           
-          animationFrameId = requestAnimationFrame(() => {
-            setMousePosition({ x, y });
-          });
+          setMousePosition({ x, y });
+          lastUpdate = now;
         }
       }
     };
     
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -342,9 +339,9 @@ const SportsDashboard = () => {
   };
 
   const StatCard = ({ icon: Icon, title, value, subtitle, color, trend }) => (
-    <div className="relative group">
-      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 via-violet-500/20 to-emerald-500/20 rounded-2xl blur-sm opacity-75 group-hover:opacity-100 transition-opacity duration-300"></div>
-      <div className="relative bg-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-4 md:p-6 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]">
+    <div className="relative hover-isolated group">
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/10 via-violet-500/10 to-emerald-500/10 rounded-2xl opacity-50 group-hover:opacity-80 transition-opacity duration-200"></div>
+      <div className="relative bg-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 p-4 md:p-6 group-hover:border-white/20 transition-all duration-200 h-full">
         <div className="flex items-start justify-between mb-3">
           <div className={`p-2 md:p-3 rounded-xl bg-gradient-to-r ${color} shadow-lg`}>
             <Icon className="w-5 h-5 text-white md:w-6 md:h-6" />
@@ -367,18 +364,30 @@ const SportsDashboard = () => {
 
   const SportCard = ({ sport }) => {
     const handleSportClick = () => {
-      if (sport.name === 'Cricket') {
-        navigate('/cricket-management');
+      const sportRoutes = {
+        'Cricket': '/cricket-management',
+        'Football': '/football-management',
+        'Basketball': '/basketball-management',
+        'Badminton': '/badminton-management',
+        'Volleyball': '/volleyball-management',
+        'Tennis': '/tennis-management',
+        'Table Tennis': '/tabletennis-management',
+        'Hockey': '/hockey-management'
+      };
+      
+      const route = sportRoutes[sport.name];
+      if (route) {
+        navigate(route);
       } else {
         setSelectedSport(selectedSport?.id === sport.id ? null : sport);
       }
     };
 
     return (
-      <div className="relative group">
-        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 via-violet-500/20 to-emerald-500/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-        <div className="relative bg-white/[0.02] backdrop-blur-xl rounded-2xl border border-white/10 p-4 md:p-6 hover:border-white/20 transition-all duration-300 hover:scale-[1.02] cursor-pointer"
-             onClick={handleSportClick}>
+      <div className="relative cursor-pointer hover-isolated group" onClick={handleSportClick}>
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/10 via-violet-500/10 to-emerald-500/10 rounded-2xl opacity-0 group-hover:opacity-60 transition-opacity duration-200"></div>
+        <div className="relative bg-white/[0.02] backdrop-blur-sm rounded-2xl border border-white/10 p-4 md:p-6 group-hover:border-white/20 transition-all duration-200"
+             >
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center space-x-3">
               <div className={`p-3 rounded-xl bg-gradient-to-r ${sport.color} shadow-lg`}>
@@ -398,7 +407,10 @@ const SportsDashboard = () => {
                 </div>
               </div>
             </div>
-            <ChevronRight className={`w-5 h-5 text-white/40 transition-transform duration-300 ${selectedSport?.id === sport.id ? 'rotate-90' : ''}`} />
+            <div className="flex items-center px-3 py-1 space-x-2 text-xs rounded-lg text-white/60 bg-white/10">
+              <span>Manage</span>
+              <ChevronRight className="w-3 h-3" />
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 mb-4">
@@ -429,148 +441,97 @@ const SportsDashboard = () => {
             </div>
           </div>
 
-          {selectedSport?.id === sport.id && sport.name !== 'Cricket' && (
-            <div className="mt-4 p-4 bg-white/[0.02] rounded-xl border border-white/10 animate-slide-in">
-              <p className="mb-3 text-sm text-white/80">{sport.description}</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-xs text-white/60">
-                  <Calendar className="w-3 h-3" />
-                  <span>{sport.nextMatch}</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openLogoManager(sport);
-                  }}
-                  className="flex items-center space-x-1 px-3 py-1 bg-gradient-to-r from-blue-500/20 to-violet-500/20 rounded-lg border border-blue-500/30 text-blue-400 hover:from-blue-500/30 hover:to-violet-500/30 transition-all duration-300 text-xs"
-                >
-                  <Camera className="w-3 h-3" />
-                  <span>Manage Team Logos</span>
-                </button>
+          {/* Management Call-to-Action */}
+          <div className="p-3 mt-4 border bg-gradient-to-r from-white/5 to-white/10 rounded-xl border-white/10">
+            <p className="mb-2 text-sm font-medium text-center text-white/90">
+              Click to manage {sport.name.toLowerCase()} teams and players
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center">
+                <div className="text-lg font-bold text-white">{sport.teams}</div>
+                <div className="text-xs text-white/60">Active Teams</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-white">{sport.players}</div>
+                <div className="text-xs text-white/60">Total Players</div>
               </div>
             </div>
-          )}
-
-          {sport.name === 'Cricket' && (
-            <div className="mt-4 space-y-3">
-              <div className="p-3 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl border border-green-500/20">
-                <p className="text-sm text-green-400 font-medium mb-2">Click to manage cricket teams and players</p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-white">{sport.teams}</div>
-                    <div className="text-xs text-white/60">Active Teams</div>
+            {sport.teamList && sport.teamList.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <div className="text-xs font-medium text-white/70">Recent Teams:</div>
+                {sport.teamList.slice(0, 3).map(team => (
+                  <div key={team.id} className="flex items-center justify-between text-xs text-white/60">
+                    <span>{team.name}</span>
+                    <span className="text-white/80">{team.playerCount || 0} players</span>
                   </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-white">{sport.players}</div>
-                    <div className="text-xs text-white/60">Total Players</div>
-                  </div>
-                </div>
-                {sport.teamList && sport.teamList.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    <div className="text-xs text-green-300 font-medium">Recent Teams:</div>
-                    {sport.teamList.slice(0, 3).map(team => (
-                      <div key={team.id} className="flex items-center justify-between text-xs text-white/70">
-                        <span>{team.name}</span>
-                        <span className="text-green-400">{team.playerCount || 0} players</span>
-                      </div>
-                    ))}
-                    {sport.teamList.length > 3 && (
-                      <div className="text-xs text-white/50">+{sport.teamList.length - 3} more teams</div>
-                    )}
-                  </div>
+                ))}
+                {sport.teamList.length > 3 && (
+                  <div className="text-xs text-white/50">+{sport.teamList.length - 3} more teams</div>
                 )}
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openLogoManager(sport);
-                }}
-                className="w-full flex items-center justify-center space-x-2 p-2 bg-gradient-to-r from-blue-500/10 to-violet-500/10 rounded-xl border border-blue-500/20 text-blue-400 hover:from-blue-500/20 hover:to-violet-500/20 transition-all duration-300 text-sm"
-              >
-                <Camera className="w-4 h-4" />
-                <span>Manage Team Logos</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div 
-      ref={containerRef} 
-      className="relative w-full min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"
-    >
-      {/* Show loading spinner while data is loading */}
-      {loading && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50">
-          <div className="relative">
-            <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/30 to-violet-500/30 rounded-3xl blur-xl animate-pulse"></div>
-            <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-violet-500 mb-4 animate-spin">
-                <Cpu className="w-8 h-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Loading Dashboard</h3>
-              <p className="text-white/70">Fetching latest tournament data...</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Dynamic background overlay */}
-      <div 
-        className="fixed inset-0 transition-all duration-1000 pointer-events-none opacity-20 md:opacity-30"
-        style={{
-          background: typeof window !== 'undefined' && window.innerWidth >= 768 
-            ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at ${100 - mousePosition.x}% ${100 - mousePosition.y}%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)`
-            : 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)'
-        }}
-      ></div>
-
-      {/* Grid pattern overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-5 md:opacity-10">
+    <div ref={containerRef} className="relative w-screen h-screen p-0 m-0 overflow-x-hidden overflow-y-auto text-white scroll-container gpu-accelerated" style={{ fontFamily: "'Poppins', sans-serif" }}>
+      {/* Fullscreen animated background */}
+      <div className="fixed inset-0 z-0 w-screen h-screen overflow-hidden background-layer">
+        {/* Gradient background */}
+        <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"></div>
+        {/* Dynamic radial overlay */}
         <div 
-          className="w-full h-full" 
+          className="absolute inset-0 w-full h-full transition-all duration-1000 pointer-events-none opacity-20 md:opacity-30"
           style={{
-            backgroundImage: `
-              linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: '50px 50px',
-            animation: 'grid-move 20s linear infinite'
+            background: typeof window !== 'undefined' && window.innerWidth >= 768 
+              ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at ${100 - mousePosition.x}% ${100 - mousePosition.y}%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)`
+              : 'radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)'
           }}
         ></div>
-      </div>
-
-      {/* Floating particles */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={i}
-            className={`absolute rounded-full blur-sm animate-float-${i % 4}`}
+        {/* Simplified grid pattern overlay */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none opacity-3">
+          <div 
+            className="w-full h-full" 
             style={{
-              width: `${15 + (i % 3) * 10}px`,
-              height: `${15 + (i % 3) * 10}px`,
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              background: `linear-gradient(135deg, ${
-                i % 4 === 0 ? 'rgba(59, 130, 246, 0.08)' :
-                i % 4 === 1 ? 'rgba(139, 92, 246, 0.08)' :
-                i % 4 === 2 ? 'rgba(16, 185, 129, 0.08)' :
-                'rgba(236, 72, 153, 0.08)'
-              }, transparent)`,
-              animationDelay: `${i * 0.5}s`,
-              animationDuration: `${8 + (i % 3) * 2}s`
+              backgroundImage: `
+                linear-gradient(rgba(59, 130, 246, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.05) 1px, transparent 1px)
+              `,
+              backgroundSize: '60px 60px',
+              animation: 'grid-move 30s linear infinite'
             }}
           ></div>
-        ))}
+        </div>
+        {/* Optimized floating particles - reduced count and complexity */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full opacity-30"
+              style={{
+                width: `${20 + (i % 2) * 15}px`,
+                height: `${20 + (i % 2) * 15}px`,
+                top: `${20 + (i * 15)}%`,
+                left: `${10 + (i * 15)}%`,
+                background: `radial-gradient(circle, ${
+                  i % 3 === 0 ? 'rgba(59, 130, 246, 0.1)' :
+                  i % 3 === 1 ? 'rgba(139, 92, 246, 0.1)' :
+                  'rgba(16, 185, 129, 0.1)'
+                }, transparent)`,
+                animation: `float-simple ${6 + (i % 2) * 2}s ease-in-out infinite`,
+                animationDelay: `${i * 1}s`
+              }}
+            ></div>
+          ))}
+        </div>
       </div>
-
       {/* Main Content */}
-      <div className="relative z-10 w-full min-h-screen p-4 md:p-8">
+      <div className="relative z-10 w-screen min-h-screen px-0 py-4 content-layer md:py-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mx-4 mb-8 md:mx-8">
           <div className="relative">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 via-violet-500/20 to-emerald-500/20 rounded-3xl blur-xl animate-pulse-glow"></div>
             
@@ -580,10 +541,10 @@ const SportsDashboard = () => {
                 
                 <div className="relative z-10 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
                   <div className="flex items-center space-x-4">
-                    <div className="inline-flex items-center justify-center w-16 h-16 transition-all duration-500 border shadow-lg md:w-20 md:h-20 group rounded-2xl bg-gradient-to-r from-blue-500/20 to-violet-500/20 border-white/10 hover:scale-110 hover:rotate-3">
+                    <div className="inline-flex items-center justify-center w-16 h-16 transition-all duration-500 border shadow-lg hover-isolated md:w-20 md:h-20 group rounded-2xl bg-gradient-to-r from-blue-500/20 to-violet-500/20 border-white/10 hover:scale-110 hover:rotate-3">
                       <div className="absolute inset-0 transition-opacity duration-500 opacity-0 bg-gradient-to-r from-blue-500 to-violet-500 rounded-2xl group-hover:opacity-10"></div>
-                      <Trophy className="w-8 h-8 text-blue-400 transition-colors duration-500 md:w-10 md:h-10 group-hover:text-white" />
-                      <div className="absolute flex items-center justify-center w-6 h-6 rounded-full -top-1 -right-1 bg-emerald-500">
+                      <Trophy className="relative w-8 h-8 text-blue-400 transition-colors duration-500 md:w-10 md:h-10 group-hover:text-white" />
+                      <div className="absolute flex items-center justify-center w-6 h-6 transition-opacity duration-300 rounded-full opacity-0 -top-1 -right-1 bg-emerald-500 group-hover:opacity-100">
                         <Sparkles className="w-3 h-3 text-white animate-spin" />
                       </div>
                     </div>
@@ -613,15 +574,15 @@ const SportsDashboard = () => {
                   </div>
 
                   <div className="flex items-center space-x-3">
-                    <button className="p-3 bg-white/[0.05] border border-white/10 rounded-xl hover:bg-white/[0.1] transition-all duration-300 hover:scale-110">
+                    <button className="hover-isolated p-3 bg-white/[0.05] border border-white/10 rounded-xl hover:bg-white/[0.1] transition-all duration-300 hover:scale-110">
                       <Bell className="w-5 h-5 text-white/70" />
                     </button>
-                    <button className="p-3 bg-white/[0.05] border border-white/10 rounded-xl hover:bg-white/[0.1] transition-all duration-300 hover:scale-110">
+                    <button className="hover-isolated p-3 bg-white/[0.05] border border-white/10 rounded-xl hover:bg-white/[0.1] transition-all duration-300 hover:scale-110">
                       <Settings className="w-5 h-5 text-white/70" />
                     </button>
                     <button 
                       onClick={handleLogout}
-                      className="flex items-center px-4 py-2 space-x-2 transition-all duration-300 border bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-500/30 rounded-xl hover:from-red-500/30 hover:to-red-600/30"
+                      className="flex items-center px-4 py-2 space-x-2 transition-all duration-300 border hover-isolated bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-500/30 rounded-xl hover:from-red-500/30 hover:to-red-600/30"
                     >
                       <LogOut className="w-4 h-4 text-red-400" />
                       <span className="font-medium text-red-400">Logout</span>
@@ -634,13 +595,13 @@ const SportsDashboard = () => {
         </div>
 
         {/* Statistics Overview */}
-        <div className="mb-8">
+        <div className="mx-4 mb-8 md:mx-8">
           <h2 className="flex items-center mb-6 text-xl font-bold text-white md:text-2xl">
             <BarChart3 className="w-6 h-6 mr-3 text-blue-400" />
             Tournament Overview
           </h2>
           
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 md:gap-6">
+          <div className="grid items-stretch grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6 md:gap-6">
             <StatCard
               icon={Users}
               title="Total Players"
@@ -692,7 +653,7 @@ const SportsDashboard = () => {
         </div>
 
         {/* Sports List Section */}
-        <div className="mb-8">
+        <div className="mx-4 mb-8 md:mx-8">
           <div className="flex flex-col mb-6 space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
             <h2 className="flex items-center text-xl font-bold text-white md:text-2xl">
               <Award className="w-6 h-6 mr-3 text-emerald-400" />
@@ -729,7 +690,7 @@ const SportsDashboard = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid items-start grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredSports.map((sport) => (
               <SportCard key={sport.id} sport={sport} />
             ))}
@@ -749,7 +710,7 @@ const SportsDashboard = () => {
 
       {/* Team Logo Management Modal */}
       {showLogoManager && selectedTeamForLogo && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-lg">
           <div className="relative">
             <div className="absolute -inset-2 bg-gradient-to-r from-blue-500/30 to-violet-500/30 rounded-3xl blur-xl animate-pulse"></div>
             <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -765,16 +726,16 @@ const SportsDashboard = () => {
                 </div>
                 <button
                   onClick={() => setShowLogoManager(false)}
-                  className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-300"
+                  className="p-3 transition-all duration-300 bg-white/10 hover:bg-white/20 rounded-xl"
                 >
                   <X className="w-6 h-6 text-white" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {selectedTeamForLogo.teamList?.map((team) => (
                   <div key={team.id} className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-violet-500/20 rounded-2xl blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
+                    <div className="absolute transition-all duration-300 opacity-0 -inset-1 bg-gradient-to-r from-blue-500/20 to-violet-500/20 rounded-2xl blur-sm group-hover:opacity-100"></div>
                     <div className="relative bg-white/[0.05] backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:border-white/20 transition-all duration-300">
                       
                       {/* Team Header */}
@@ -794,18 +755,18 @@ const SportsDashboard = () => {
                               <img 
                                 src={teamLogos[team.id]} 
                                 alt={`${team.name} logo`}
-                                className="w-full h-full object-contain"
+                                className="object-contain w-full h-full"
                               />
                               <button
                                 onClick={() => handleRemoveLogo(team.id)}
-                                className="absolute top-2 right-2 p-1 bg-red-500/80 hover:bg-red-500 rounded-full transition-all duration-300"
+                                className="absolute p-1 transition-all duration-300 rounded-full top-2 right-2 bg-red-500/80 hover:bg-red-500"
                               >
                                 <Trash2 className="w-3 h-3 text-white" />
                               </button>
                             </div>
                           ) : (
                             <div className="text-center">
-                              <ImageIcon className="w-8 h-8 text-white/30 mx-auto mb-2" />
+                              <ImageIcon className="w-8 h-8 mx-auto mb-2 text-white/30" />
                               <p className="text-sm text-white/40">No logo uploaded</p>
                             </div>
                           )}
@@ -824,7 +785,7 @@ const SportsDashboard = () => {
                             }}
                             className="hidden"
                           />
-                          <div className="flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-blue-500/20 to-violet-500/20 border border-blue-500/30 rounded-xl text-blue-400 hover:from-blue-500/30 hover:to-violet-500/30 cursor-pointer transition-all duration-300">
+                          <div className="flex items-center justify-center p-3 space-x-2 text-blue-400 transition-all duration-300 border cursor-pointer bg-gradient-to-r from-blue-500/20 to-violet-500/20 border-blue-500/30 rounded-xl hover:from-blue-500/30 hover:to-violet-500/30">
                             <Upload className="w-4 h-4" />
                             <span className="font-medium">
                               {teamLogos[team.id] ? 'Change Logo' : 'Upload Logo'}
@@ -835,7 +796,7 @@ const SportsDashboard = () => {
                         {teamLogos[team.id] && (
                           <button
                             onClick={() => handleRemoveLogo(team.id)}
-                            className="w-full flex items-center justify-center space-x-2 p-3 bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 rounded-xl text-red-400 hover:from-red-500/30 hover:to-red-600/30 transition-all duration-300"
+                            className="flex items-center justify-center w-full p-3 space-x-2 text-red-400 transition-all duration-300 border bg-gradient-to-r from-red-500/20 to-red-600/20 border-red-500/30 rounded-xl hover:from-red-500/30 hover:to-red-600/30"
                           >
                             <Trash2 className="w-4 h-4" />
                             <span className="font-medium">Remove Logo</span>
@@ -850,7 +811,7 @@ const SportsDashboard = () => {
               <div className="flex justify-center mt-8">
                 <button
                   onClick={() => setShowLogoManager(false)}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl text-white font-bold hover:from-green-600 hover:to-blue-700 transition-all duration-300"
+                  className="flex items-center px-6 py-3 space-x-2 font-bold text-white transition-all duration-300 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl hover:from-green-600 hover:to-blue-700"
                 >
                   <Save className="w-5 h-5" />
                   <span>Save Changes</span>
@@ -908,5 +869,6 @@ const SportsDashboard = () => {
     </div>
   );
 };
+
 
 export default SportsDashboard;

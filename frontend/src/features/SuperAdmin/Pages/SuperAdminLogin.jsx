@@ -24,39 +24,54 @@ const UltraModernsuperAdminAuth = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoHovered, setLogoHovered] = useState(false);
   const containerRef = useRef(null);
 
   // Typing animation effect
   const titles = ["Cricket Command Center", "Live Match Control", "superAdmin Dashboard", "Data Analytics Hub"];
-  
+
   useEffect(() => {
     let titleIndex = 0;
     let charIndex = 0;
     let isDeleting = false;
-    
+    let timer = null;
+
     const typeEffect = () => {
       const currentTitle = titles[titleIndex];
-      
+      let updatedText;
+
       if (isDeleting) {
-        setTypingAnimation(currentTitle.substring(0, charIndex - 1));
+        updatedText = currentTitle.substring(0, charIndex - 1);
         charIndex--;
       } else {
-        setTypingAnimation(currentTitle.substring(0, charIndex + 1));
+        updatedText = currentTitle.substring(0, charIndex + 1);
         charIndex++;
       }
-      
+
+      setTypingAnimation(updatedText);
+
+      let speed = isDeleting ? 60 : 90; // Faster for smoother effect
+
+      // Pause at end of typing
       if (!isDeleting && charIndex === currentTitle.length) {
-        setTimeout(() => { isDeleting = true; }, 2000);
-      } else if (isDeleting && charIndex === 0) {
+        speed = 1200;
+        isDeleting = true;
+      }
+      // Pause at end of deleting
+      else if (isDeleting && charIndex === 0) {
+        speed = 600;
         isDeleting = false;
         titleIndex = (titleIndex + 1) % titles.length;
       }
-      
-      const speed = isDeleting ? 100 : 150;
-      setTimeout(typeEffect, speed);
+
+      timer = setTimeout(typeEffect, speed);
     };
-    
+
     typeEffect();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // Mouse tracking with smooth interpolation (disabled on mobile)
@@ -221,15 +236,15 @@ const UltraModernsuperAdminAuth = () => {
   };
 
   return (
-    <div ref={containerRef} className="absolute inset-0 min-h-screen">
+    <div ref={containerRef} className="fixed inset-0 w-screen h-screen min-h-screen overflow-auto">
       {/* Ultra-modern animated background - Full Screen */}
-      <div className="absolute inset-0 flex items-center justify-center w-full h-full">
+      <div className="fixed inset-0 z-0 w-screen h-screen pointer-events-none">
         {/* Base gradient */}
-        <div className="absolute inset-0 h-auto bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"></div>
+        <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-slate-950 via-blue-950 to-violet-950"></div>
         
         {/* Dynamic mesh gradient - optimized for mobile */}
         <div 
-          className="absolute inset-0 transition-all duration-1000 opacity-20 md:opacity-30"
+          className="absolute inset-0 w-full h-full transition-all duration-1000 opacity-20 md:opacity-30"
           style={{
             background: typeof window !== 'undefined' && window.innerWidth >= 768 
               ? `radial-gradient(circle at ${mousePosition.x}% ${mousePosition.y}%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at ${100 - mousePosition.x}% ${100 - mousePosition.y}%, rgba(139, 92, 246, 0.15) 0%, transparent 50%)`
@@ -238,15 +253,20 @@ const UltraModernsuperAdminAuth = () => {
         ></div>
 
         {/* Animated grid pattern - simplified for mobile */}
-        <div className="absolute inset-0 opacity-5 md:opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `
-              linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: typeof window !== 'undefined' && window.innerWidth >= 768 ? '50px 50px' : '30px 30px',
-            animation: 'grid-move 20s linear infinite'
-          }}></div>
+        <div className="absolute inset-0 w-full h-full opacity-5 md:opacity-10">
+          <div
+            className="absolute inset-0 w-full h-full"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),' +
+                'linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px)',
+              backgroundSize:
+                typeof window !== 'undefined' && window.innerWidth >= 768
+                  ? '50px 50px'
+                  : '30px 30px',
+              animation: 'grid-move 20s linear infinite'
+            }}
+          ></div>
         </div>
 
         {/* Floating geometric shapes - reduced for mobile */}
@@ -307,14 +327,26 @@ const UltraModernsuperAdminAuth = () => {
                 
                 <div className="relative z-10">
                   {/* Logo with animation - responsive size */}
-                  <div className="inline-flex items-center justify-center w-16 h-16 mb-4 transition-all duration-500 border shadow-lg md:w-24 md:h-24 md:mb-6 group rounded-xl md:rounded-2xl bg-gradient-to-r from-blue-500/20 to-violet-500/20 border-white/10 hover:scale-110 hover:rotate-3">
+                  <div
+                    className="relative inline-flex items-center justify-center w-16 h-16 mb-4 transition-all duration-500 border shadow-lg md:w-24 md:h-24 md:mb-6 group rounded-xl md:rounded-2xl bg-gradient-to-r from-blue-500/20 to-violet-500/20 border-white/10 hover:scale-110 hover:rotate-3"
+                    onMouseEnter={() => setLogoHovered(true)}
+                    onMouseLeave={() => setLogoHovered(false)}
+                  >
                     <div className="absolute inset-0 transition-opacity duration-500 opacity-0 bg-gradient-to-r from-blue-500 to-violet-500 rounded-xl md:rounded-2xl group-hover:opacity-10"></div>
                     <Crown className="w-8 h-8 text-blue-400 transition-colors duration-500 md:w-12 md:h-12 group-hover:text-white" />
-                    <div className="absolute flex items-center justify-center w-4 h-4 rounded-full md:w-6 md:h-6 -top-1 -right-1 bg-emerald-500">
-                      <Sparkles className="w-2 h-2 text-white md:w-3 md:h-3 animate-spin" />
-                    </div>
+                    {/* Badge on logo when hovered */}
+                    {logoHovered && (
+                      <div className="absolute z-20 flex items-center justify-center w-5 h-5 rounded-full -top-2 -right-2 md:w-6 md:h-6 bg-emerald-500">
+                        <Sparkles className="w-3 h-3 text-white md:w-4 md:h-4 animate-spin" />
+                      </div>
+                    )}
                   </div>
-                  
+                  {/* Badge at card top-right when NOT hovered */}
+                  {!logoHovered && (
+                    <div className="absolute z-20 flex items-center justify-center w-5 h-5 rounded-full top-4 right-4 md:w-6 md:h-6 bg-emerald-500">
+                      <Sparkles className="w-3 h-3 text-white md:w-4 md:h-4 animate-spin" />
+                    </div>
+                  )}
                   {/* Typing animation title - responsive text */}
                   <div className="h-6 mb-2 md:h-8">
                     <h1 className="text-lg font-bold text-transparent md:text-2xl bg-gradient-to-r from-blue-400 via-violet-400 to-emerald-400 bg-clip-text">
@@ -500,7 +532,7 @@ const UltraModernsuperAdminAuth = () => {
                   </div>
                   
                   {/* Password strength indicator */}
-                  {formData.password && (
+                  {!isLogin && formData.password && (
                     <div className="mt-2 space-y-2 md:mt-3">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-white/60">Password Strength</span>
@@ -638,31 +670,6 @@ const UltraModernsuperAdminAuth = () => {
                     <ArrowRight className="w-3 h-3 text-blue-400 transition-transform md:w-4 md:h-4 group-hover:translate-x-1" />
                   </button>
                 </div>
-
-                {/* Stats section - responsive grid */}
-                <div className="grid grid-cols-3 gap-3 pt-4 border-t md:gap-4 md:pt-6 border-white/5">
-                  <div className="space-y-1 text-center md:space-y-2">
-                    <div className="flex items-center justify-center w-6 h-6 mx-auto rounded-md md:w-8 md:h-8 md:rounded-lg bg-emerald-500/20">
-                      <Shield className="w-3 h-3 md:w-4 md:h-4 text-emerald-400" />
-                    </div>
-                    <div className="text-xs text-white/60">Secure</div>
-                    <div className="text-xs font-semibold md:text-sm text-emerald-400">256-bit</div>
-                  </div>
-                  <div className="space-y-1 text-center md:space-y-2">
-                    <div className="flex items-center justify-center w-6 h-6 mx-auto rounded-md md:w-8 md:h-8 md:rounded-lg bg-blue-500/20">
-                      <Zap className="w-3 h-3 text-blue-400 md:w-4 md:h-4" />
-                    </div>
-                    <div className="text-xs text-white/60">Response</div>
-                    <div className="text-xs font-semibold text-blue-400 md:text-sm">&lt;200ms</div>
-                  </div>
-                  <div className="space-y-1 text-center md:space-y-2">
-                    <div className="flex items-center justify-center w-6 h-6 mx-auto rounded-md md:w-8 md:h-8 md:rounded-lg bg-violet-500/20">
-                      <Activity className="w-3 h-3 md:w-4 md:h-4 text-violet-400" />
-                    </div>
-                    <div className="text-xs text-white/60">Uptime</div>
-                    <div className="text-xs font-semibold md:text-sm text-violet-400">99.9%</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -721,53 +728,29 @@ const UltraModernsuperAdminAuth = () => {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 0.6; }
         }
-        
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
+
+        /* Smoother transitions for background layers */
+        .absolute.inset-0.w-full.h-full {
+          transition: background 2s cubic-bezier(0.77, 0, 0.175, 1), opacity 1.5s cubic-bezier(0.77, 0, 0.175, 1);
+          will-change: background, opacity;
         }
-        
-        @keyframes scale-in {
-          0% { transform: scale(0); opacity: 0; }
-          100% { transform: scale(1); opacity: 1; }
-        }
-        
-        @keyframes slide-in {
-          0% { transform: translateX(-20px); opacity: 0; }
-          100% { transform: translateX(0); opacity: 1; }
-        }
-        
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          25% { transform: translateX(-5px); }
-          75% { transform: translateX(5px); }
-        }
-        
-        @keyframes pulse-border {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-        
+
         .animate-gradient-rotate {
-          animation: gradient-rotate 3s linear infinite;
+          animation: gradient-rotate 8s linear infinite;
+          will-change: transform;
         }
-        
-        .animate-float-0 { animation: float-0 6s ease-in-out infinite; }
-        .animate-float-1 { animation: float-1 7s ease-in-out infinite; }
-        .animate-float-2 { animation: float-2 5s ease-in-out infinite; }
-        .animate-float-3 { animation: float-3 8s ease-in-out infinite; }
-        
-        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
-        .animate-blink { animation: blink 1s infinite; }
-        .animate-scale-in { animation: scale-in 0.3s ease-out; }
-        .animate-slide-in { animation: slide-in 0.5s ease-out; }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
-        .animate-pulse-border { animation: pulse-border 2s ease-in-out infinite; }
+
+        .animate-float-0 { animation: float-0 10s ease-in-out infinite; will-change: transform; }
+        .animate-float-1 { animation: float-1 12s ease-in-out infinite; will-change: transform; }
+        .animate-float-2 { animation: float-2 9s ease-in-out infinite; will-change: transform; }
+        .animate-float-3 { animation: float-3 13s ease-in-out infinite; will-change: transform; }
+
+        .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; will-change: opacity; }
 
         /* Mobile specific optimizations */
         @media (max-width: 768px) {
           .animate-float-0, .animate-float-1, .animate-float-2, .animate-float-3 {
-            animation-duration: 4s;
+            animation-duration: 7s;
           }
         }
       `}</style>

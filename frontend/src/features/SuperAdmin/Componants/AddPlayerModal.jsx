@@ -56,7 +56,7 @@ export default function AddPlayerModal({ open, onOpenChange, onSubmit }) {
             <Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="Enter contact info" className="text-white bg-slate-700 border-slate-600" />
           </div>
           <div className="flex gap-2 pt-4">
-            <Button type="submit" className="flex-1 bg-purple-600 hover:bg-purple-700 text-white">Register Player</Button>
+            <Button type="submit" className="flex-1 text-white bg-purple-600 hover:bg-purple-700">Register Player</Button>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700">Cancel</Button>
           </div>
         </form>

@@ -13,8 +13,9 @@ const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  // Use same fallback secret as login route to avoid mismatch in dev
+  const jwtSecret = process.env.JWT_SECRET || 'dev_secret';
+  const decoded = jwt.verify(token, jwtSecret);
 
     // Check if superadmin exists
     const superadmin = await SuperAdmin.findById(decoded.id);
@@ -64,7 +65,8 @@ const optionalAuthMiddleware = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const jwtSecret = process.env.JWT_SECRET || 'dev_secret';
+  const decoded = jwt.verify(token, jwtSecret);
       const superadmin = await SuperAdmin.findById(decoded.id);
       
       if (superadmin) {

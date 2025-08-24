@@ -50,7 +50,7 @@ export default function AnalyticsModal({ open, onOpenChange, stats }) {
             </Card>
           </div>
           <div className="pt-4">
-            <Button onClick={() => onOpenChange(false)} className="w-full bg-slate-600 hover:bg-slate-700 text-white">Close</Button>
+            <Button onClick={() => onOpenChange(false)} className="w-full text-white bg-slate-600 hover:bg-slate-700">Close</Button>
           </div>
         </div>
       </DialogContent>

@@ -1,4 +1,4 @@
-    "use client"
+"use client"
 
 import React, { useEffect, useRef } from "react"
 
@@ -90,7 +90,7 @@ class Particle {
   kill(width, height) {
     if (!this.isKilled) {
       // Set target outside the scene
-      const randomPos = this.generateRandomPos(width / 2, height / 2, (width + height) / 2)
+      const randomPos = this.generateRandomPos(width / 2, height / 2, (width + height) / 2, width, height)
       this.target.x = randomPos.x
       this.target.y = randomPos.y
 
@@ -107,9 +107,9 @@ class Particle {
     }
   }
 
-  generateRandomPos(x, y, mag) {
-    const randomX = Math.random() * 1000
-    const randomY = Math.random() * 500
+  generateRandomPos(x, y, mag, width, height) {
+    const randomX = Math.random() * width
+    const randomY = Math.random() * height
 
     const direction = {
       x: randomX - x,
@@ -134,7 +134,9 @@ const DEFAULT_WORDS = ["CRICKET", "COMMAND", "CENTER", "SUPERADMIN", "DASHBOARD"
 export function ParticleTextEffect({ 
   words = DEFAULT_WORDS, 
   onComplete,
-  duration = 8000 
+  duration = 8000,
+  currentWordIndex = 0,
+  externalControl = false
 }) {
   const canvasRef = useRef(null)
   const animationRef = useRef()
@@ -143,13 +145,15 @@ export function ParticleTextEffect({
   const wordIndexRef = useRef(0)
   const mouseRef = useRef({ x: 0, y: 0, isPressed: false, isRightClick: false })
   const timeoutRef = useRef()
+  const lastWordIndexRef = useRef(-1)
 
-  const pixelSteps = 6
   const drawAsPoints = true
 
   const generateRandomPos = (x, y, mag) => {
-    const randomX = Math.random() * 1000
-    const randomY = Math.random() * 500
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const randomX = Math.random() * canvas.width
+    const randomY = Math.random() * canvas.height
 
     const direction = {
       x: randomX - x,
@@ -169,6 +173,8 @@ export function ParticleTextEffect({
   }
 
   const nextWord = (word, canvas) => {
+    const pixelSteps = canvas.width > 600 ? 6 : 8
+
     // Create off-screen canvas for text rendering
     const offscreenCanvas = document.createElement("canvas")
     offscreenCanvas.width = canvas.width
@@ -176,8 +182,9 @@ export function ParticleTextEffect({
     const offscreenCtx = offscreenCanvas.getContext("2d")
 
     // Draw text
+    const fontSize = Math.max(24, Math.min(100, canvas.width / 8))
     offscreenCtx.fillStyle = "white"
-    offscreenCtx.font = "bold 100px Arial"
+    offscreenCtx.font = `bold ${fontSize}px Arial`
     offscreenCtx.textAlign = "center"
     offscreenCtx.textBaseline = "middle"
     offscreenCtx.fillText(word, canvas.width / 2, canvas.height / 2)
@@ -298,33 +305,58 @@ export function ParticleTextEffect({
       })
     }
 
-    // Auto-advance words
-    frameCountRef.current++
-    if (frameCountRef.current % 120 === 0) {
-      wordIndexRef.current = (wordIndexRef.current + 1) % words.length
-      if (wordIndexRef.current < words.length) {
-        nextWord(words[wordIndexRef.current], canvas)
+    // Auto-advance words ONLY if not externally controlled
+    if (!externalControl) {
+      frameCountRef.current++
+      if (frameCountRef.current % 120 === 0) {
+        wordIndexRef.current = (wordIndexRef.current + 1) % words.length
+        if (wordIndexRef.current < words.length) {
+          nextWord(words[wordIndexRef.current], canvas)
+        }
       }
     }
 
     animationRef.current = requestAnimationFrame(animate)
   }
 
+  // Handle external word index changes
+  useEffect(() => {
+    if (externalControl && currentWordIndex !== lastWordIndexRef.current) {
+      const canvas = canvasRef.current
+      if (canvas && words[currentWordIndex]) {
+        nextWord(words[currentWordIndex], canvas)
+        lastWordIndexRef.current = currentWordIndex
+      }
+    }
+  }, [currentWordIndex, externalControl, words])
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    canvas.width = 1000
-    canvas.height = 500
+    const resizeCanvas = () => {
+      // Fill parent container (viewport)
+      const width = window.innerWidth
+      const height = window.innerHeight
 
-    // Initialize with first word
-    nextWord(words[0], canvas)
+      canvas.width = width
+      canvas.height = height
+
+      const initialWordIndex = externalControl ? currentWordIndex : 0
+      nextWord(words[initialWordIndex] || words[0], canvas)
+      if (externalControl) {
+        lastWordIndexRef.current = initialWordIndex
+      }
+    }
+
+    window.addEventListener("resize", resizeCanvas)
+    resizeCanvas() // Initial setup
 
     // Start animation
     animate()
 
-    // Auto-complete after duration
-    if (onComplete && duration) {
+    // Auto-complete after duration (only if not externally controlled)
+    if (onComplete && duration && !externalControl) {
       timeoutRef.current = setTimeout(() => {
         onComplete()
       }, duration)
@@ -376,19 +408,20 @@ export function ParticleTextEffect({
       canvas.removeEventListener("mousedown", handleMouseDown)
       canvas.removeEventListener("mouseup", handleMouseUp)
       canvas.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("resize", resizeCanvas)
       canvas.removeEventListener("contextmenu", handleContextMenu)
       canvas.removeEventListener("click", handleClick)
     }
-  }, [onComplete, duration])
+  }, [onComplete, duration, words, externalControl])
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-black">
+    <div className="fixed inset-0 flex flex-col items-center justify-center bg-black">
       <canvas
         ref={canvasRef}
         className="border border-gray-800 rounded-lg shadow-2xl cursor-pointer"
-        style={{ maxWidth: "100%", height: "auto" }}
+        style={{ width: "100vw", height: "100vh", display: "block" }}
       />
-      <div className="max-w-md mt-4 text-sm text-center text-white">
+      <div className="absolute flex flex-col items-center w-full bottom-16">
         <p className="mb-2 text-lg font-bold text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text">
           Cricket Command Center
         </p>

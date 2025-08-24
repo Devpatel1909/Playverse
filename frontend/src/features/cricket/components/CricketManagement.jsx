@@ -1,10 +1,11 @@
+/* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Users, 
-  Trophy, 
+import {
+  ArrowLeft,
+  Plus,
+  Users,
+  Trophy,
   Search,
   Calendar,
   MapPin,
@@ -13,7 +14,6 @@ import {
   Target,
   Zap,
   Crown,
-  Sparkles,
   Shield,
   Activity,
   TrendingUp,
@@ -31,10 +31,20 @@ import {
   X,
   Edit2,
   RefreshCw,
-  Loader
+  Loader,
+  Filter,
+  Key,
+  UserCheck,
+  Settings,
+  Lock,
+  Eye,
+  EyeOff,
+  Edit,
+  MoreVertical
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import cricketAPIService from '../../../services/cricketAPI';
+import subAdminAPIService from '../../../services/subAdminAPI';
 
 const CricketManagement = () => {
   const navigate = useNavigate();
@@ -43,99 +53,81 @@ const CricketManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddTeamModal, setShowAddTeamModal] = useState(false);
   const [showAddPlayerModal, setShowAddPlayerModal] = useState(false);
+  const [showAddSubAdminModal, setShowAddSubAdminModal] = useState(false);
   const [playerPhotos, setPlayerPhotos] = useState({});
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedPlayerForPhoto, setSelectedPlayerForPhoto] = useState(null);
   const [teams, setTeams] = useState([]);
+  const [subAdmins, setSubAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [subAdminError, setSubAdminError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const currentUser = 'Dsp2810';
+  const currentDateTime = '2025-08-24 12:35:01';
+  const [newSubAdmin, setNewSubAdmin] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    phone: '',
+    specialization: '',
+    permissions: {
+      manageTeams: true,
+      managePlayers: true,
+      viewReports: true,
+      manageMatches: false
+    }
+  });
 
-  // Load teams from MongoDB via API
+  // --- Data Loading Helpers (added) ---
   const loadTeamsFromAPI = async () => {
     try {
-      setLoading(true);
       setError(null);
-      
-      const response = await cricketAPIService.getAllTeams();
-      
-      if (response.success && response.data) {
-        setTeams(response.data);
-        
-        // Also update localStorage for compatibility
-        localStorage.setItem('cricketTeams', JSON.stringify(response.data));
-        window.dispatchEvent(new CustomEvent('cricketTeamsUpdated'));
+      const res = await cricketAPIService.getAllTeams();
+      // Backend shape: { success, count, data: [teams] }
+      if (res?.success && Array.isArray(res.data)) {
+        setTeams(res.data);
+      } else if (Array.isArray(res?.data?.data)) { // fallback shape safeguard
+        setTeams(res.data.data);
       } else {
-        // If API fails, try to load from localStorage as fallback
-        const fallbackTeams = loadTeamsFromLocalStorage();
-        setTeams(fallbackTeams);
-        setError('Connected to local data. Some features may be limited without backend connection.');
+        setTeams([]);
       }
-    } catch (error) {
-      console.error('Failed to load teams from API:', error);
-      
-      // Fallback to localStorage
-      const fallbackTeams = loadTeamsFromLocalStorage();
-      setTeams(fallbackTeams);
-      setError(`Backend connection failed: ${error.message}. Using local data.`);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error('Error loading teams:', e);
+      setError(e.message || 'Failed to load teams');
     }
   };
 
-  // Fallback method to load from localStorage
-  const loadTeamsFromLocalStorage = () => {
+  const loadSubAdminsFromAPI = async () => {
     try {
-      const storedTeams = localStorage.getItem('cricketTeams');
-      if (storedTeams) {
-        return JSON.parse(storedTeams);
+      // Service returns { success: boolean, data: <backendResponse>, status }
+      const res = await subAdminAPIService.getAllSubAdmins();
+      if (res.success && res.data?.success && Array.isArray(res.data.data)) {
+        setSubAdmins(res.data.data);
+      } else if (Array.isArray(res?.data?.data)) {
+        setSubAdmins(res.data.data);
+      } else {
+        setSubAdmins([]);
       }
-    } catch (error) {
-      console.warn('Error loading teams from localStorage:', error);
+    } catch (e) {
+      console.error('Error loading sub-admins:', e);
+      setError(prev => prev || e.message || 'Failed to load sub-admins');
     }
-    
-    // Return default teams if nothing in localStorage
-    return [
-      {
-        id: 1,
-        name: 'CSPIT Warriors',
-        shortName: 'CSPIT',
-        captain: 'Rajesh Patel',
-        coach: 'Amit Shah',
-        established: '2020',
-        homeGround: 'CSPIT Cricket Ground',
-        contactEmail: 'cspit.cricket@example.com',
-        contactPhone: '+91 98765 43210',
-        players: [
-          { 
-            id: 1, 
-            name: 'Rajesh Patel', 
-            role: 'Captain/Batsman', 
-            age: 24, 
-            matches: 45, 
-            runs: 1250, 
-            wickets: 2, 
-            catches: 15, 
-            average: 28.4, 
-            strikeRate: 128.5,
-            contactPhone: '+91 98765 43210',
-            contactEmail: 'rajesh.patel@example.com',
-            experience: '5 years',
-            jerseyNumber: 1
-          }
-        ]
-      }
-    ];
   };
 
-  // Load teams on component mount
+  // Load data on component mount
   useEffect(() => {
-    loadTeamsFromAPI();
+    (async () => {
+      setLoading(true);
+      await Promise.all([loadTeamsFromAPI(), loadSubAdminsFromAPI()]);
+      setLoading(false);
+    })();
   }, []);
 
-  // Save teams to MongoDB and localStorage
+  // Save teams to localStorage
   const saveTeamsToStorage = async (newTeams) => {
     try {
-      // Save to localStorage first (immediate)
       localStorage.setItem('cricketTeams', JSON.stringify(newTeams));
       window.dispatchEvent(new CustomEvent('cricketTeamsUpdated'));
     } catch (error) {
@@ -143,11 +135,88 @@ const CricketManagement = () => {
     }
   };
 
+  // Save sub-admins to storage
+  const saveSubAdminsToStorage = (newSubAdmins) => {
+    try {
+      localStorage.setItem('cricketSubAdmins', JSON.stringify(newSubAdmins));
+    } catch (error) {
+      console.error('Error saving sub-admins to localStorage:', error);
+    }
+  };
+
+  // Enhanced Add Sub-Admin functionality with API
+  const handleAddSubAdmin = async () => {
+    if (!newSubAdmin.name || !newSubAdmin.email || !newSubAdmin.password) {
+      alert('❌ Please fill in all required fields (Name, Email, and Password)');
+      return;
+    }
+
+    if (newSubAdmin.password !== newSubAdmin.confirmPassword) {
+      alert('❌ Passwords do not match');
+      return;
+    }
+
+    if (newSubAdmin.password.length < 8) {
+      alert('❌ Password must be at least 8 characters long');
+      return;
+    }
+
+    // Check if email already exists
+    const emailExists = subAdmins.some(admin => admin.email.toLowerCase() === newSubAdmin.email.toLowerCase());
+    if (emailExists) {
+      alert('❌ Email already exists. Please use a different email address.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Try API first
+  const response = await subAdminAPIService.createSubAdmin(newSubAdmin);
+  const created = response?.data?.data; // backend: { success, data: {subAdminFields}, message }
+  if (response.success && response.data?.success && created) {
+        // Refresh from server to keep in sync (avoids mixing fallback/local objects)
+        await loadSubAdminsFromAPI();
+
+        setTimeout(() => {
+          alert(`✅ Cricket Sub-Admin Created Successfully in Database!\n\n${created.name} has been saved to MongoDB!\nEmail: ${created.email}\nSpecialization: ${created.specialization}\nStatus: ${created.status}\nSub-Admin ID: ${created._id}`);
+        }, 100);
+      } else {
+        const errMsg = response.error || response.data?.error || response.data?.message || 'Unknown error';
+        setSubAdminError(errMsg);
+        alert(`❌ Failed to create sub-admin in database.\n\n${errMsg}`);
+      }
+
+      // Reset form
+      setNewSubAdmin({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        phone: '',
+        specialization: '',
+        permissions: {
+          manageTeams: true,
+          managePlayers: true,
+          viewReports: true,
+          manageMatches: false
+        }
+      });
+      setShowAddSubAdminModal(false);
+      
+    } catch (error) {
+      console.error('Failed to create sub-admin:', error);
+      alert(`❌ Failed to Create Sub-Admin\n\nError: ${error.message}\n\nPlease check your data and try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Update player statistics
   const updatePlayerStats = (playerId) => {
-    const newRuns = Math.floor(Math.random() * 50) + 20; // Random runs between 20-69
-    const newWickets = Math.floor(Math.random() * 3) + 1; // Random wickets between 1-3
-    const newCatches = Math.floor(Math.random() * 2) + 1; // Random catches between 1-2
+    const newRuns = Math.floor(Math.random() * 50) + 20;
+    const newWickets = Math.floor(Math.random() * 3) + 1;
+    const newCatches = Math.floor(Math.random() * 2) + 1;
 
     const updatedTeams = teams.map(team => ({
       ...team,
@@ -160,7 +229,7 @@ const CricketManagement = () => {
               wickets: (player.wickets || 0) + newWickets,
               catches: (player.catches || 0) + newCatches,
               average: ((player.runs || 0) + newRuns) / ((player.matches || 0) + 1),
-              strikeRate: Math.min(200, ((player.strikeRate || 100) + Math.random() * 20 - 10)) // Slight variation
+              strikeRate: Math.min(200, ((player.strikeRate || 100) + Math.random() * 20 - 10))
             }
           : player
       )
@@ -168,13 +237,11 @@ const CricketManagement = () => {
 
     setTeams(updatedTeams);
     
-    // Update selectedTeam if it's currently being viewed
     if (selectedTeam) {
       const updatedSelectedTeam = updatedTeams.find(t => t.id === selectedTeam.id);
       setSelectedTeam(updatedSelectedTeam);
     }
     
-    // Show success message
     const updatedPlayer = updatedTeams
       .flatMap(team => team.players)
       .find(p => p.id === playerId);
@@ -205,6 +272,12 @@ const CricketManagement = () => {
   const filteredTeams = teams.filter(team =>
     team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     team.shortName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredSubAdmins = subAdmins.filter(admin =>
+    admin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    admin.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    admin.specialization.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Photo management functions
@@ -244,19 +317,13 @@ const CricketManagement = () => {
     try {
       setLoading(true);
       
-      // Validate team data
       cricketAPIService.validateTeamData(newTeam);
-      
-      // Create team via API
       const response = await cricketAPIService.createTeam(newTeam);
       
       if (response.success && response.data) {
-        // Add to local state
         const updatedTeams = [...teams, response.data];
         setTeams(updatedTeams);
-        await saveTeamsToStorage(updatedTeams);
         
-        // Reset form
         setNewTeam({
           name: '',
           shortName: '',
@@ -269,7 +336,6 @@ const CricketManagement = () => {
         });
         setShowAddTeamModal(false);
         
-        // Success feedback
         setTimeout(() => {
           alert(`✅ Team Created Successfully in Database!\n\n${response.data.name} has been saved to MongoDB!\nShort Name: ${response.data.shortName}\nTotal Teams: ${updatedTeams.length}\nTeam ID: ${response.data._id}`);
         }, 100);
@@ -288,7 +354,6 @@ const CricketManagement = () => {
       return;
     }
     
-    // Check if team already has 15 players
     if (selectedTeam.players && selectedTeam.players.length >= 15) {
       alert('⚠️ Maximum Team Size Reached!\n\nEach team can have a maximum of 15 players. Please remove a player before adding a new one.');
       return;
@@ -297,12 +362,11 @@ const CricketManagement = () => {
     try {
       setLoading(true);
       
-      // Prepare player data for API
       const playerData = {
         name: newPlayer.name.trim(),
         role: newPlayer.role,
         age: parseInt(newPlayer.age) || 18,
-        jerseyNumber: (selectedTeam.players?.length || 0) + 1, // Auto-assign jersey number
+        jerseyNumber: (selectedTeam.players?.length || 0) + 1,
         contactPhone: newPlayer.contactPhone?.trim() || '',
         contactEmail: newPlayer.contactEmail?.trim().toLowerCase() || '',
         experience: newPlayer.experience?.trim() || '0 years',
@@ -316,14 +380,10 @@ const CricketManagement = () => {
         economy: 0
       };
       
-      // Validate player data
       cricketAPIService.validatePlayerData(playerData);
-      
-      // Add player via API
       const response = await cricketAPIService.addPlayer(selectedTeam._id || selectedTeam.id, playerData);
       
       if (response.success && response.data) {
-        // Update teams list with the updated team from API
         const updatedTeams = teams.map(team => 
           (team._id || team.id) === (selectedTeam._id || selectedTeam.id) 
             ? response.data.team 
@@ -331,12 +391,9 @@ const CricketManagement = () => {
         );
         
         setTeams(updatedTeams);
-        await saveTeamsToStorage(updatedTeams);
-        
-        // Update selectedTeam state
+  // No local storage persistence; state only
         setSelectedTeam(response.data.team);
         
-        // Reset form
         setNewPlayer({
           name: '',
           role: '',
@@ -347,7 +404,6 @@ const CricketManagement = () => {
         });
         setShowAddPlayerModal(false);
         
-        // Success feedback
         setTimeout(() => {
           const addedPlayer = response.data.player;
           alert(`✅ Player Added Successfully to Database!\n\n${addedPlayer.name} has been saved to MongoDB!\nTeam: ${response.data.team.name}\nJersey Number: #${addedPlayer.jerseyNumber}\nTeam Size: ${response.data.team.players.length}/15\nPlayer ID: ${addedPlayer._id}`);
@@ -361,110 +417,248 @@ const CricketManagement = () => {
     }
   };
 
+  // Compact Team Card Component with proper sizing
   const TeamCard = ({ team }) => {
-    const teamColors = {
-      'CSPIT Warriors': 'from-emerald-500 via-green-600 to-teal-700',
-      'DEPSTAR Champions': 'from-blue-500 via-indigo-600 to-purple-700', 
-      'AMPICE Tigers': 'from-orange-500 via-red-600 to-pink-700'
-    };
-
-    const getTeamGradient = (teamName) => {
-      return teamColors[teamName] || 'from-green-500 via-blue-600 to-purple-700';
-    };
-
     return (
-      <div className="relative transition-all duration-500 transform cursor-pointer group hover:scale-105" onClick={() => {
-        setSelectedTeam(team);
-        setActiveView('team-details');
-      }}>
-        {/* Glowing border effect */}
-        <div className={`absolute -inset-1 bg-gradient-to-r ${getTeamGradient(team.name)} rounded-3xl blur-md opacity-30 group-hover:opacity-70 transition-all duration-500`}></div>
-        
-        {/* Main card */}
-        <div className="relative p-8 overflow-hidden transition-all duration-500 border bg-gradient-to-br from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border-white/20 group-hover:border-white/40">
-          {/* Background pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            }}></div>
-          </div>
-
-          {/* Floating cricket ball decoration */}
-          <div className="absolute w-20 h-20 transition-transform duration-500 rounded-full -top-4 -right-4 bg-gradient-to-br from-red-400/20 to-orange-500/20 blur-xl group-hover:scale-110"></div>
+      <div className="w-full mb-4">
+        <div className="relative cursor-pointer group" onClick={() => {
+          setSelectedTeam(team);
+          setActiveView('team-details');
+        }}>
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 via-blue-600 to-purple-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
           
-          {/* Header */}
-          <div className="relative flex items-start justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <div className={`relative p-4 rounded-2xl bg-gradient-to-br ${getTeamGradient(team.name)} shadow-2xl group-hover:rotate-12 transition-transform duration-500`}>
-                <Trophy className="w-8 h-8 text-white drop-shadow-lg" />
-                <div className="absolute flex items-center justify-center w-6 h-6 bg-yellow-400 rounded-full -top-1 -right-1">
-                  <Crown className="w-3 h-3 text-yellow-900" />
+          <div className="relative w-full p-5 overflow-hidden transition-all duration-300 border bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-[1.02]">
+            
+            {/* Compact Header */}
+            <div className="relative flex items-center justify-between mb-4">
+              <div className="flex items-center flex-1 space-x-4">
+                <div className="relative p-2.5 transition-transform duration-300 shadow-lg rounded-xl bg-gradient-to-br from-emerald-500 via-blue-600 to-purple-700 group-hover:scale-110">
+                  <Trophy className="w-6 h-6 text-white drop-shadow-lg" />
+                  <div className="absolute flex items-center justify-center w-4 h-4 bg-yellow-400 rounded-full -top-1 -right-1">
+                    <Crown className="w-2 h-2 text-yellow-900" />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <h3 className="mb-1 text-2xl font-bold text-white transition-all duration-300 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-green-400">
-                  {team.name}
-                </h3>
-                <div className="flex items-center space-x-3">
-                  <span className="px-3 py-1 text-sm font-semibold text-green-400 border rounded-full bg-gradient-to-r from-green-500/20 to-blue-500/20 border-green-500/30">
-                    {team.shortName}
-                  </span>
-                  <div className="flex items-center space-x-1 text-yellow-400">
-                    <Star className="w-4 h-4 fill-current" />
-                    <span className="text-sm font-medium">Pro Team</span>
+                
+                <div className="flex-1 min-w-0">
+                  <h3 className="mb-1 text-lg font-bold text-white truncate transition-colors duration-300 group-hover:text-emerald-400">
+                    {team.name}
+                  </h3>
+                  <div className="flex items-center mb-1 space-x-3">
+                    <span className="px-2.5 py-1 text-xs font-bold border rounded-full text-emerald-400 bg-emerald-500/20 border-emerald-500/40">
+                      {team.shortName}
+                    </span>
+                    <div className="flex items-center space-x-1 text-yellow-400">
+                      <Star className="w-3.5 h-3.5 fill-current" />
+                      <span className="text-xs font-medium">Elite</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 text-sm text-slate-300">
+                    <div className="flex items-center space-x-1">
+                      <Calendar className="w-3 h-3" />
+                      <span className="text-xs">Est. {team.established}</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-transparent bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text">
-                {team.players.length}
+              
+              <div className="text-right">
+                <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-600 bg-clip-text">
+                  {team.players?.length || 0}
+                </div>
+                <div className="text-xs font-medium text-white/70">Players</div>
               </div>
-              <div className="text-sm font-medium text-white/60">Active Players</div>
             </div>
-          </div>
 
-          {/* Team stats grid */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div className="p-4 border bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20 rounded-xl">
-              <div className="flex items-center mb-2 space-x-3">
-                <Shield className="w-5 h-5 text-green-400" />
-                <span className="text-sm font-medium text-green-400">Captain</span>
+            {/* Compact Stats Grid */}
+            <div className="grid grid-cols-2 gap-3 mb-4 md:grid-cols-4">
+              <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-600/10 border-emerald-500/30">
+                <Shield className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                <div className="mb-1 text-xs font-medium text-emerald-400">Captain</div>
+                <div className="text-sm font-bold text-white truncate">{team.captain || 'TBA'}</div>
               </div>
-              <div className="text-lg font-semibold text-white">{team.captain}</div>
-            </div>
-            <div className="p-4 border bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/20 rounded-xl">
-              <div className="flex items-center mb-2 space-x-3">
-                <Award className="w-5 h-5 text-blue-400" />
-                <span className="text-sm font-medium text-blue-400">Coach</span>
+              
+              <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/30">
+                <Award className="w-4 h-4 mx-auto mb-1 text-blue-400" />
+                <div className="mb-1 text-xs font-medium text-blue-400">Coach</div>
+                <div className="text-sm font-bold text-white truncate">{team.coach || 'TBA'}</div>
               </div>
-              <div className="text-lg font-semibold text-white">{team.coach}</div>
+              
+              <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/30">
+                <Users className="w-4 h-4 mx-auto mb-1 text-purple-400" />
+                <div className="mb-1 text-xs font-medium text-purple-400">Squad</div>
+                <div className={`text-sm font-bold ${
+                  (team.players?.length || 0) >= 15 ? 'text-red-400' : 
+                  (team.players?.length || 0) >= 12 ? 'text-yellow-400' : 'text-white'
+                }`}>
+                  {team.players?.length || 0}/15
+                </div>
+              </div>
+              
+              <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/30">
+                <Phone className="w-4 h-4 mx-auto mb-1 text-orange-400" />
+                <div className="mb-1 text-xs font-medium text-orange-400">Contact</div>
+                <div className="text-xs font-bold text-white truncate">{team.contactPhone || 'N/A'}</div>
+              </div>
             </div>
-          </div>
 
-          {/* Footer info */}
-          <div className="flex items-center justify-between pt-4 border-t border-white/10">
-            <div className="flex items-center space-x-2 text-white/70">
-              <Calendar className="w-4 h-4" />
-              <span className="text-sm">Est. {team.established}</span>
+            {/* Compact Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-white/20">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1 text-emerald-400">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                  <span className="text-xs font-medium">Active</span>
+                </div>
+                <div className="flex items-center space-x-1 text-blue-400">
+                  <Mail className="w-3 h-3" />
+                  <span className="text-xs font-medium truncate max-w-[120px]">{team.contactEmail || 'No Email'}</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="px-2.5 py-1 border rounded-full bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30">
+                  <span className="text-xs font-medium text-white">Pro</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-emerald-500/20 transition-colors">
+                  <Edit className="w-3 h-3 text-white/60 group-hover:text-emerald-400" />
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-2 text-white/70">
-              <MapPin className="w-4 h-4" />
-              <span className="text-sm">Home Stadium</span>
-            </div>
-            <div className="flex items-center space-x-2 text-green-400">
-              <Activity className="w-4 h-4" />
-              <span className="text-sm font-medium">Active</span>
-            </div>
-          </div>
 
-          {/* Hover effect overlay */}
-          <div className="absolute inset-0 transition-opacity duration-500 opacity-0 bg-gradient-to-br from-white/5 to-transparent group-hover:opacity-100 rounded-3xl"></div>
+            <div className="absolute inset-0 transition-opacity duration-300 opacity-0 pointer-events-none bg-gradient-to-br from-emerald-400/5 via-blue-400/5 to-purple-400/5 group-hover:opacity-100 rounded-xl"></div>
+          </div>
         </div>
       </div>
     );
   };
 
+  // Compact Sub-Admin Card Component
+  const SubAdminCard = ({ subAdmin }) => {
+    const getStatusColor = (status) => {
+      return status === 'Active' ? 'from-green-500 to-emerald-600' : 'from-red-500 to-rose-600';
+    };
+
+    const getPermissionCount = (permissions) => {
+      return Object.values(permissions).filter(Boolean).length;
+    };
+
+    return (
+      <div className="w-full mb-4">
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
+          
+          <div className="relative w-full p-5 overflow-hidden transition-all duration-300 border bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg">
+            
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center flex-1 space-x-4">
+                <div className="relative p-2.5 shadow-lg rounded-xl bg-gradient-to-br from-cyan-500 via-purple-600 to-pink-700">
+                  <UserCheck className="w-6 h-6 text-white drop-shadow-lg" />
+                  <div className="absolute flex items-center justify-center w-4 h-4 bg-green-400 rounded-full -top-1 -right-1">
+                    <Shield className="w-2 h-2 text-green-900" />
+                  </div>
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h3 className="mb-1 text-lg font-bold text-white truncate">
+                    {subAdmin.name}
+                  </h3>
+                  <div className="flex items-center mb-1 space-x-3">
+                    <span className={`px-2.5 py-1 text-xs font-bold border rounded-full bg-gradient-to-r ${getStatusColor(subAdmin.status)}/20 border-opacity-40`} 
+                          style={{borderColor: subAdmin.status === 'Active' ? '#10b981' : '#ef4444', color: subAdmin.status === 'Active' ? '#10b981' : '#ef4444'}}>
+                      {subAdmin.status}
+                    </span>
+                    <div className="flex items-center space-x-1 text-cyan-400">
+                      <Settings className="w-3.5 h-3.5" />
+                      <span className="text-xs font-medium truncate">{subAdmin.specialization}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 text-sm text-slate-300">
+                    <div className="flex items-center space-x-1">
+                      <Mail className="w-3 h-3" />
+                      <span className="text-xs truncate max-w-[120px]">{subAdmin.email}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-right">
+                <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-600 bg-clip-text">
+                  {getPermissionCount(subAdmin.permissions)}
+                </div>
+                <div className="text-xs font-medium text-white/70">Permissions</div>
+              </div>
+            </div>
+
+            {/* Compact Permissions Grid */}
+            <div className="grid grid-cols-2 gap-2 mb-4 md:grid-cols-4">
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.manageTeams ? 'bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <Users className={`w-3.5 h-3.5 ${subAdmin.permissions.manageTeams ? 'text-green-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.manageTeams ? 'text-green-400' : 'text-gray-400'}`}>Teams</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.manageTeams ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.manageTeams ? 'Granted' : 'Denied'}
+                </div>
+              </div>
+              
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.managePlayers ? 'bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <User className={`w-3.5 h-3.5 ${subAdmin.permissions.managePlayers ? 'text-blue-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.managePlayers ? 'text-blue-400' : 'text-gray-400'}`}>Players</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.managePlayers ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.managePlayers ? 'Granted' : 'Denied'}
+                </div>
+              </div>
+              
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.viewReports ? 'bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <BarChart3 className={`w-3.5 h-3.5 ${subAdmin.permissions.viewReports ? 'text-purple-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.viewReports ? 'text-purple-400' : 'text-gray-400'}`}>Reports</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.viewReports ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.viewReports ? 'Granted' : 'Denied'}
+                </div>
+              </div>
+              
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.manageMatches ? 'bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <Trophy className={`w-3.5 h-3.5 ${subAdmin.permissions.manageMatches ? 'text-orange-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.manageMatches ? 'text-orange-400' : 'text-gray-400'}`}>Matches</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.manageMatches ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.manageMatches ? 'Granted' : 'Denied'}
+                </div>
+              </div>
+            </div>
+
+            {/* Compact Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-white/20">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1 text-cyan-400">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                  <span className="text-xs font-medium">Sub-Admin</span>
+                </div>
+                <div className="text-xs text-slate-400">
+                  Created: {subAdmin.joinedDate}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="px-2.5 py-1 border rounded-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border-cyan-500/30">
+                  <span className="text-xs font-medium text-white">Auth</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/10 hover:bg-cyan-500/20 transition-colors cursor-pointer">
+                  <MoreVertical className="w-3 h-3 text-white/60 hover:text-cyan-400" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Compact Player Card Component  
   const PlayerCard = ({ player }) => {
     const getRoleColor = (role) => {
       if (role?.includes('Captain')) return 'from-yellow-500 to-amber-600';
@@ -487,20 +681,14 @@ const CricketManagement = () => {
     const RoleIcon = getRoleIcon(player.role);
 
     return (
-      <div className="relative transition-all duration-500 transform cursor-pointer group hover:scale-105">
-        {/* Glowing border */}
-        <div className={`absolute -inset-0.5 bg-gradient-to-r ${getRoleColor(player.role)} rounded-2xl blur opacity-20 group-hover:opacity-60 transition-all duration-500`}></div>
+      <div className="relative group">
+        <div className={`absolute -inset-0.5 bg-gradient-to-r ${getRoleColor(player.role)} rounded-lg opacity-0 group-hover:opacity-20 transition-all duration-300`}></div>
         
-        <div className="relative p-6 overflow-hidden transition-all duration-500 border bg-gradient-to-br from-slate-800/90 via-slate-700/90 to-slate-800/90 backdrop-blur-xl rounded-2xl border-white/20 group-hover:border-white/40">
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-32 h-32 -mt-16 -mr-16 rounded-full bg-gradient-to-bl from-white/5 to-transparent"></div>
-          
-          {/* Header with photo */}
-          <div className="relative flex items-start justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              {/* Player Photo */}
-              <div className="relative">
-                <div className="w-16 h-16 overflow-hidden border-2 rounded-xl bg-gradient-to-r from-slate-600 to-slate-700 border-white/20">
+        <div className="relative h-full p-4 overflow-hidden transition-all duration-300 border rounded-lg bg-gradient-to-br from-slate-800/95 via-slate-700/95 to-slate-800/95 backdrop-blur-lg border-white/10 group-hover:border-white/30 group-hover:shadow-lg">
+          <div className="relative flex items-start justify-between mb-3">
+            <div className="flex items-center flex-1 min-w-0 space-x-2.5">
+              <div className="relative flex-shrink-0">
+                <div className="overflow-hidden border-2 rounded-lg w-11 h-11 bg-gradient-to-r from-slate-600 to-slate-700 border-white/20">
                   {playerPhotos[player.id] ? (
                     <img 
                       src={playerPhotos[player.id]} 
@@ -509,112 +697,65 @@ const CricketManagement = () => {
                     />
                   ) : (
                     <div className="flex items-center justify-center w-full h-full">
-                      <User className="w-8 h-8 text-white/40" />
+                      <User className="w-5 h-5 text-white/40" />
                     </div>
                   )}
                 </div>
-                {/* Photo upload button */}
                 <button
                   onClick={() => openPhotoModal(player)}
-                  className="absolute -bottom-1 -right-1 p-1.5 bg-blue-500 hover:bg-blue-600 rounded-full border-2 border-slate-800 transition-all duration-300 hover:scale-110"
+                  className="absolute p-0.5 transition-all duration-300 bg-blue-500 border rounded-full -bottom-0.5 -right-0.5 hover:bg-blue-600 border-slate-800 hover:scale-110"
                 >
-                  <Camera className="w-3 h-3 text-white" />
+                  <Camera className="w-2 h-2 text-white" />
                 </button>
               </div>
 
-              <div className="flex-1">
-                <h4 className="text-lg font-bold text-white transition-all duration-300 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-green-400">
+              <div className="flex-1 min-w-0">
+                <h4 className="mb-0.5 text-sm font-bold text-white truncate transition-colors duration-300 group-hover:text-green-400">
                   {player.name}
                 </h4>
-                <p className="text-sm font-medium text-white/70">{player.role}</p>
-                <div className="flex items-center mt-1 space-x-2">
-                  <div className={`px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r ${getRoleColor(player.role)}/20 border ${getRoleColor(player.role)}/30`}>
-                    <RoleIcon className="inline w-3 h-3 mr-1" />
-                    <span className="text-white/80">{player.experience}</span>
+                <p className="text-xs font-medium truncate text-white/70">{player.role}</p>
+                <div className="flex items-center mt-1 space-x-1.5">
+                  <div className={`px-1.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r ${getRoleColor(player.role)}/20 border border-opacity-30`}>
+                    <RoleIcon className="inline w-2 h-2 mr-0.5" />
+                    <span className="text-white/80">{player.experience || '0y'}</span>
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="flex flex-col items-end">
-              <div className="flex items-center mb-1 space-x-1">
-                <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                <span className="text-sm font-semibold text-yellow-400">Age {player.age}</span>
+            <div className="flex flex-col items-end flex-shrink-0">
+              <div className="flex items-center mb-0.5 space-x-0.5">
+                <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                <span className="text-xs font-semibold text-yellow-400">{player.age}</span>
               </div>
-              <div className="px-2 py-1 border rounded-full bg-green-500/20 border-green-500/30">
+              <div className="px-1.5 py-0.5 border rounded-full bg-green-500/20 border-green-500/30">
                 <span className="text-xs font-medium text-green-400">Active</span>
               </div>
             </div>
           </div>
           
-          {/* Enhanced Stats Grid - Show all stats */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/20">
-              <div className="flex items-center justify-center mb-1">
-                <Activity className="w-4 h-4 mr-1 text-blue-400" />
-                <div className="text-lg font-bold text-blue-400">{player.matches || 0}</div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/20">
+              <div className="flex items-center justify-center mb-0.5">
+                <Activity className="w-3 h-3 mr-0.5 text-blue-400" />
+                <div className="text-sm font-bold text-blue-400">{player.matches || 0}</div>
               </div>
               <div className="text-xs font-medium text-white/60">Matches</div>
             </div>
             
-            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20">
-              <div className="flex items-center justify-center mb-1">
-                <TrendingUp className="w-4 h-4 mr-1 text-green-400" />
-                <div className="text-lg font-bold text-green-400">{player.runs || 0}</div>
+            <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20">
+              <div className="flex items-center justify-center mb-0.5">
+                <TrendingUp className="w-3 h-3 mr-0.5 text-green-400" />
+                <div className="text-sm font-bold text-green-400">{player.runs || 0}</div>
               </div>
               <div className="text-xs font-medium text-white/60">Runs</div>
             </div>
-            
-            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/20">
-              <div className="flex items-center justify-center mb-1">
-                <Target className="w-4 h-4 mr-1 text-purple-400" />
-                <div className="text-lg font-bold text-purple-400">{player.wickets || 0}</div>
-              </div>
-              <div className="text-xs font-medium text-white/60">Wickets</div>
-            </div>
-            
-            <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/20">
-              <div className="flex items-center justify-center mb-1">
-                <Shield className="w-4 h-4 mr-1 text-orange-400" />
-                <div className="text-lg font-bold text-orange-400">{player.catches || 0}</div>
-              </div>
-              <div className="text-xs font-medium text-white/60">Catches</div>
-            </div>
           </div>
 
-          {/* Performance Metrics */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {player.average && (
-              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border-cyan-500/20">
-                <div className="text-sm font-bold text-cyan-400">{player.average}</div>
-                <div className="text-xs text-white/60">Average</div>
-              </div>
-            )}
-            {player.strikeRate && (
-              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-yellow-500/10 to-amber-600/10 border-yellow-500/20">
-                <div className="text-sm font-bold text-yellow-400">{player.strikeRate}</div>
-                <div className="text-xs text-white/60">Strike Rate</div>
-              </div>
-            )}
-            {player.economy && (
-              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-pink-500/10 to-rose-600/10 border-pink-500/20">
-                <div className="text-sm font-bold text-pink-400">{player.economy}</div>
-                <div className="text-xs text-white/60">Economy</div>
-              </div>
-            )}
-            {player.stumps && (
-              <div className="p-2 text-center border rounded-lg bg-gradient-to-r from-indigo-500/10 to-violet-600/10 border-indigo-500/20">
-                <div className="text-sm font-bold text-indigo-400">{player.stumps}</div>
-                <div className="text-xs text-white/60">Stumpings</div>
-              </div>
-            )}
-          </div>
-
-          {/* Performance indicator */}
-          <div className="flex items-center justify-between pt-3 border-t border-white/10">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium text-green-400">Performance</span>
+          <div className="flex items-center justify-between pt-2 border-t border-white/10">
+            <div className="flex items-center space-x-1.5">
+              <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-xs font-medium text-green-400">Performance</span>
             </div>
             <div className="flex items-center space-x-1">
               <button
@@ -622,16 +763,15 @@ const CricketManagement = () => {
                 className="p-1 text-xs text-blue-400 transition-all duration-300 rounded bg-blue-500/20 hover:bg-blue-500/30"
                 title="Update Stats"
               >
-                <Edit2 className="w-3 h-3" />
+                <Edit2 className="w-2.5 h-2.5" />
               </button>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="w-3 h-3 text-yellow-400 fill-current" />
-              ))}
+              <div className="flex space-x-0.5">
+                {[1, 2, 3].map((star) => (
+                  <Star key={star} className="w-2.5 h-2.5 text-yellow-400 fill-current" />
+                ))}
+              </div>
             </div>
           </div>
-
-          {/* Hover overlay */}
-          <div className="absolute inset-0 transition-opacity duration-500 opacity-0 bg-gradient-to-br from-white/5 to-transparent group-hover:opacity-100 rounded-2xl"></div>
         </div>
       </div>
     );
@@ -639,133 +779,160 @@ const CricketManagement = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Clean Professional Background */}
+      {/* Enhanced Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        {/* Subtle radial gradients for depth */}
-        <div className="absolute top-0 rounded-full left-1/4 w-96 h-96 bg-green-500/5 blur-3xl" />
-        <div className="absolute bottom-0 rounded-full right-1/4 w-80 h-80 bg-blue-500/5 blur-3xl" />
-        <div className="absolute w-64 h-64 transform -translate-x-1/2 -translate-y-1/2 rounded-full top-1/2 left-1/2 bg-purple-500/3 blur-3xl" />
+        <div className="absolute top-0 rounded-full left-1/4 w-96 h-96 bg-emerald-500/4 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 rounded-full right-1/4 w-80 h-80 bg-blue-500/4 blur-3xl animate-pulse" style={{animationDelay: '1s'}} />
+        <div className="absolute w-64 h-64 transform -translate-x-1/2 -translate-y-1/2 rounded-full top-1/2 left-1/2 bg-purple-500/3 blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
         
-        {/* Subtle grid overlay */}
-        <div className="absolute inset-0 opacity-[0.02]">
+        <div className="absolute inset-0 opacity-[0.015]">
           <div 
             className="w-full h-full"
             style={{
               backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-              backgroundSize: '60px 60px'
+              backgroundSize: '50px 50px'
             }}
           />
         </div>
-        
-        {/* Noise texture for depth */}
-        <div className="absolute inset-0 opacity-[0.015] mix-blend-overlay">
-          <div className="w-full h-full" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`,
-            backgroundSize: '200px 200px'
-          }} />
-        </div>
       </div>
 
-      <div className="relative z-10 p-6 text-white">
-        {/* Enhanced Header */}
-        <div className="mb-12">
+      <div className="relative z-10 p-4 text-white lg:p-6">
+        {/* Compact Header */}
+        <div className="mb-6">
           <div className="relative">
-            {/* Header background glow */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-green-500/20 via-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl animate-pulse"></div>
+            <div className="absolute -inset-2 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 rounded-xl blur-lg"></div>
             
-            <div className="relative p-8 border bg-gradient-to-r from-slate-900/80 via-slate-800/80 to-slate-900/80 backdrop-blur-2xl rounded-3xl border-white/20">
+            <div className="relative p-4 border bg-gradient-to-r from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-xl border-white/20 lg:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-3">
                   <button
                     onClick={() => {
                       if (activeView === 'team-details') {
                         setActiveView('teams');
                         setSelectedTeam(null);
                       } else {
-                        navigate('/superadmin/dashboard');
+                        navigate('/superadmin/sports');
                       }
                     }}
-                    className="relative p-3 transition-all duration-300 border group bg-gradient-to-r from-green-500/20 to-blue-500/20 border-green-500/30 rounded-2xl hover:from-green-500/30 hover:to-blue-500/30"
+                    className="relative p-2.5 transition-all duration-300 border group bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30 rounded-lg hover:from-emerald-500/30 hover:to-blue-500/30 hover:scale-105"
                   >
-                    <ArrowLeft className="w-6 h-6 text-white transition-colors duration-300 group-hover:text-green-400" />
-                    <div className="absolute transition-opacity duration-300 opacity-0 -inset-1 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-2xl blur group-hover:opacity-70"></div>
+                    <ArrowLeft className="w-4 h-4 text-white transition-colors duration-300 group-hover:text-emerald-400" />
                   </button>
                   
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     <div className="relative">
-                      <div className="p-4 shadow-2xl bg-gradient-to-br from-green-500 via-emerald-600 to-blue-600 rounded-2xl">
-                        <Trophy className="w-10 h-10 text-white" />
-                        <div className="absolute flex items-center justify-center w-6 h-6 bg-yellow-400 rounded-full -top-2 -right-2">
-                          <Sparkles className="w-3 h-3 text-yellow-900" />
-                        </div>
+                      <div className="p-2.5 shadow-lg bg-gradient-to-br from-emerald-500 via-blue-600 to-purple-600 rounded-lg">
+                        <Trophy className="w-6 h-6 text-white" />
                       </div>
-                      <div className="absolute inset-0 opacity-50 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl blur-lg animate-pulse"></div>
                     </div>
                     
                     <div>
-                      <h1 className="mb-2 text-4xl font-bold text-transparent bg-gradient-to-r from-green-400 via-emerald-500 to-blue-500 bg-clip-text">
-                        {activeView === 'teams' ? 'Cricket Championship Hub' : `${selectedTeam?.name} Squad`}
+                      <h1 className="mb-0.5 text-xl font-bold text-transparent bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-500 bg-clip-text lg:text-2xl">
+                        {activeView === 'teams' ? 'Cricket Management Hub' : 
+                         activeView === 'sub-admins' ? 'Cricket Sub-Administrators' :
+                         `${selectedTeam?.name} Squad`}
                       </h1>
-                      <p className="text-lg font-medium text-white/80">
-                        {activeView === 'teams' 
-                          ? 'Professional Cricket Team Management System' 
-                          : 'Elite Player Roster & Performance Analytics'
-                        }
+                      <p className="text-sm font-medium text-white/80">
+                        {activeView === 'teams' ? 'Professional Team & Sub-Admin Management System' : 
+                         activeView === 'sub-admins' ? 'Manage Cricket Sub-Administrator Access & Permissions' :
+                         'Elite Player Roster & Performance Analytics'}
                       </p>
-                      <div className="flex items-center mt-2 space-x-4">
-                        <div className="flex items-center space-x-2 text-green-400">
-                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                          <span className="text-sm font-medium">Live System</span>
+                      <div className="flex items-center mt-1 space-x-3">
+                        <div className="flex items-center space-x-1 text-emerald-400">
+                          <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
+                          <span className="text-xs font-medium">Live System</span>
                         </div>
-                        <div className="flex items-center space-x-2 text-blue-400">
-                          <Shield className="w-4 h-4" />
-                          <span className="text-sm font-medium">Secure Platform</span>
+                        <div className="flex items-center space-x-1 text-blue-400">
+                          <Shield className="w-3 h-3" />
+                          <span className="text-xs font-medium">Secure Platform</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <button
-                  onClick={() => activeView === 'teams' ? setShowAddTeamModal(true) : setShowAddPlayerModal(true)}
-                  disabled={activeView === 'team-details' && selectedTeam && selectedTeam.players.length >= 15}
-                  className={`relative flex items-center px-6 py-3 space-x-3 transition-all duration-300 transform shadow-2xl group rounded-2xl hover:scale-105 ${
-                    activeView === 'team-details' && selectedTeam && selectedTeam.players.length >= 15 
-                      ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60' 
-                      : 'bg-gradient-to-r from-green-500 via-emerald-600 to-blue-600 hover:from-green-600 hover:via-emerald-700 hover:to-blue-700'
-                  }`}
-                >
-                  <div className={`absolute transition-opacity duration-300 opacity-50 -inset-1 rounded-2xl blur group-hover:opacity-75 ${
-                    activeView === 'team-details' && selectedTeam && selectedTeam.players.length >= 15 
-                      ? 'bg-gradient-to-r from-gray-500 to-gray-600' 
-                      : 'bg-gradient-to-r from-green-500 to-blue-600'
-                  }`}></div>
-                  <Plus className="relative w-5 h-5 text-white" />
-                  <span className="relative font-semibold text-white">
-                    {activeView === 'teams' ? 'Create Team' : selectedTeam && selectedTeam.players.length >= 15 ? `Team Full (${selectedTeam.players.length}/15)` : `Add Player (${selectedTeam?.players.length || 0}/15)`}
-                  </span>
-                </button>
+                <div className="flex items-center space-x-2 lg:space-x-3">
+                  {loading && (
+                    <div className="flex items-center space-x-1.5 text-blue-400">
+                      <Loader className="w-3.5 h-3.5 animate-spin" />
+                      <span className="text-xs">Loading...</span>
+                    </div>
+                  )}
+                  
+                  {/* Compact Navigation Tabs */}
+                  {activeView !== 'team-details' && (
+                    <div className="flex space-x-1.5">
+                      <button
+                        onClick={() => setActiveView('teams')}
+                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
+                          activeView === 'teams' 
+                            ? 'bg-gradient-to-r from-emerald-500 to-blue-600 text-white' 
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                        }`}
+                      >
+                        <Users className="inline w-3.5 h-3.5 mr-1.5" />
+                        Teams ({teams.length})
+                      </button>
+                      <button
+                        onClick={() => setActiveView('sub-admins')}
+                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
+                          activeView === 'sub-admins' 
+                            ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white' 
+                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                        }`}
+                      >
+                        <UserCheck className="inline w-3.5 h-3.5 mr-1.5" />
+                        Sub-Admins ({subAdmins.length})
+                      </button>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      if (activeView === 'teams') setShowAddTeamModal(true);
+                      else if (activeView === 'sub-admins') setShowAddSubAdminModal(true);
+                      else setShowAddPlayerModal(true);
+                    }}
+                    disabled={activeView === 'team-details' && selectedTeam && selectedTeam.players?.length >= 15}
+                    className={`flex items-center px-3 py-2 space-x-1.5 transition-all duration-300 transform shadow-lg rounded-lg hover:scale-105 text-sm font-semibold ${
+                      activeView === 'team-details' && selectedTeam && selectedTeam.players?.length >= 15 
+                        ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60' 
+                        : activeView === 'sub-admins'
+                        ? 'bg-gradient-to-r from-purple-500 via-pink-600 to-red-600 hover:from-purple-600 hover:via-pink-700 hover:to-red-700'
+                        : 'bg-gradient-to-r from-emerald-500 via-blue-600 to-purple-600 hover:from-emerald-600 hover:via-blue-700 hover:to-purple-700'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-white" />
+                    <span className="text-white">
+                      {activeView === 'teams' ? 'Create Team' : 
+                       activeView === 'sub-admins' ? 'Add Sub-Admin' :
+                       selectedTeam && selectedTeam.players?.length >= 15 ? `Full (${selectedTeam.players?.length || 0}/15)` : `Add Player (${selectedTeam?.players?.length || 0}/15)`}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Enhanced Search Bar */}
-          {activeView === 'teams' && (
-            <div className="max-w-2xl mx-auto mt-8">
+          {/* Compact Search Bar */}
+          {(activeView === 'teams' || activeView === 'sub-admins') && (
+            <div className="max-w-xl mx-auto mt-4">
               <div className="relative group">
-                <div className="absolute transition-opacity duration-300 opacity-0 -inset-1 bg-gradient-to-r from-green-500/30 to-blue-500/30 rounded-2xl blur group-hover:opacity-70"></div>
+                <div className="absolute transition-opacity duration-300 opacity-0 -inset-0.5 bg-gradient-to-r from-emerald-500/20 to-purple-500/20 rounded-lg blur group-focus-within:opacity-100"></div>
                 <div className="relative flex items-center">
-                  <Search className="absolute z-10 w-5 h-5 text-green-400 left-4" />
+                  <Search className="absolute z-10 w-3.5 h-3.5 text-emerald-400 left-3" />
                   <input
                     type="text"
-                    placeholder="Search teams by name or abbreviation..."
+                    placeholder={activeView === 'teams' ? "Search teams by name or abbreviation..." : "Search sub-admins by name, email, or specialization..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full py-4 pl-12 pr-6 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-900/80 backdrop-blur-xl border-white/20 rounded-2xl placeholder-white/50 focus:border-green-400 focus:outline-none"
+                    className="w-full py-2.5 pr-5 text-sm text-white transition-all duration-300 border pl-9 bg-gradient-to-r from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-white/20 rounded-lg placeholder-white/50 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                   />
-                  <div className="absolute right-4">
-                    <div className="px-3 py-1 border rounded-lg bg-green-500/20 border-green-500/30">
-                      <span className="text-sm font-medium text-green-400">{filteredTeams.length} Teams</span>
+                  <div className="absolute right-3">
+                    <div className="px-2 py-0.5 border rounded-md bg-emerald-500/20 border-emerald-500/30">
+                      <span className="text-xs font-medium text-emerald-400">
+                        {activeView === 'teams' ? `${filteredTeams.length} Teams` : `${filteredSubAdmins.length} Sub-Admins`}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -774,46 +941,102 @@ const CricketManagement = () => {
           )}
         </div>
 
-        {/* Teams View */}
-        {activeView === 'teams' && (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {filteredTeams.map(team => (
-              <TeamCard key={team.id} team={team} />
-            ))}
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <Loader className="w-10 h-10 mx-auto mb-3 text-emerald-400 animate-spin" />
+              <p className="text-base font-medium text-white/70">Loading cricket data...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="max-w-xl p-3 mx-auto mb-4 border rounded-lg bg-yellow-500/10 border-yellow-500/30">
+            <div className="flex items-center space-x-2">
+              <Activity className="w-4 h-4 text-yellow-400" />
+              <div>
+                <h4 className="text-sm font-semibold text-yellow-200">Connection Notice</h4>
+                <p className="text-xs text-yellow-200/80">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Teams View - Compact Cards */}
+        {activeView === 'teams' && !loading && (
+          <div>
+            {filteredTeams.length === 0 ? (
+              <div className="py-16 text-center">
+                <Trophy className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                <h3 className="mb-1 text-lg font-semibold text-white/60">No teams found</h3>
+                <p className="text-sm text-white/40">
+                  {searchTerm ? 'Try adjusting your search terms' : 'Create your first cricket team to get started'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredTeams.map(team => (
+                  <TeamCard key={team._id || team.id} team={team} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sub-Admins View - Compact Cards */}
+        {activeView === 'sub-admins' && !loading && (
+          <div>
+            {filteredSubAdmins.length === 0 ? (
+              <div className="py-16 text-center">
+                <UserCheck className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                <h3 className="mb-1 text-lg font-semibold text-white/60">No sub-admins found</h3>
+                <p className="text-sm text-white/40">
+                  {searchTerm ? 'Try adjusting your search terms' : 'Add your first cricket sub-administrator to get started'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredSubAdmins.map(subAdmin => (
+                    <SubAdminCard key={subAdmin._id || subAdmin.id} subAdmin={subAdmin} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* Team Details View */}
-        {activeView === 'team-details' && selectedTeam && (
+        {activeView === 'team-details' && selectedTeam && !loading && (
           <div>
-            {/* Team Statistics Banner */}
-            <div className="relative mb-10">
-              <div className="absolute -inset-2 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-3xl blur-xl"></div>
-              <div className="relative p-8 border bg-gradient-to-r from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border-white/20">
-                <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
-                  <div className="p-6 text-center border bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20 rounded-2xl">
-                    <Shield className="w-8 h-8 mx-auto mb-3 text-green-400" />
-                    <h3 className="mb-2 text-sm font-medium text-green-400">Team Captain</h3>
-                    <p className="text-lg font-bold text-white">{selectedTeam.captain}</p>
+            {/* Compact Team Statistics Banner */}
+            <div className="relative mb-6">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/10 to-purple-500/10 rounded-xl blur-lg"></div>
+              <div className="relative p-4 border bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/20">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-600/10 border-emerald-500/20">
+                    <Shield className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
+                    <h3 className="text-xs font-medium text-emerald-400 mb-0.5">Team Captain</h3>
+                    <p className="text-sm font-bold text-white truncate">{selectedTeam.captain || 'TBA'}</p>
                   </div>
-                  <div className="p-6 text-center border bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/20 rounded-2xl">
-                    <Award className="w-8 h-8 mx-auto mb-3 text-blue-400" />
-                    <h3 className="mb-2 text-sm font-medium text-blue-400">Head Coach</h3>
-                    <p className="text-lg font-bold text-white">{selectedTeam.coach}</p>
+                  <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/20">
+                    <Award className="w-4 h-4 mx-auto mb-1 text-blue-400" />
+                    <h3 className="text-xs font-medium text-blue-400 mb-0.5">Head Coach</h3>
+                    <p className="text-sm font-bold text-white truncate">{selectedTeam.coach || 'TBA'}</p>
                   </div>
-                  <div className="p-6 text-center border bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/20 rounded-2xl">
-                    <MapPin className="w-8 h-8 mx-auto mb-3 text-purple-400" />
-                    <h3 className="mb-2 text-sm font-medium text-purple-400">Home Ground</h3>
-                    <p className="text-lg font-bold text-white">Stadium</p>
+                  <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/20">
+                    <MapPin className="w-4 h-4 mx-auto mb-1 text-purple-400" />
+                    <h3 className="text-xs font-medium text-purple-400 mb-0.5">Home Ground</h3>
+                    <p className="text-sm font-bold text-white truncate">{selectedTeam.homeGround || 'Stadium'}</p>
                   </div>
-                  <div className="p-6 text-center border bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/20 rounded-2xl">
-                    <Users className="w-8 h-8 mx-auto mb-3 text-orange-400" />
-                    <h3 className="mb-2 text-sm font-medium text-orange-400">Squad Size</h3>
-                    <p className={`text-lg font-bold ${selectedTeam.players.length >= 15 ? 'text-red-400' : selectedTeam.players.length >= 12 ? 'text-yellow-400' : 'text-white'}`}>
-                      {selectedTeam.players.length}/15 Players
+                  <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/20">
+                    <Users className="w-4 h-4 mx-auto mb-1 text-orange-400" />
+                    <h3 className="text-xs font-medium text-orange-400 mb-0.5">Squad Size</h3>
+                    <p className={`text-sm font-bold ${selectedTeam.players?.length >= 15 ? 'text-red-400' : selectedTeam.players?.length >= 12 ? 'text-yellow-400' : 'text-white'}`}>
+                      {selectedTeam.players?.length || 0}/15 Players
                     </p>
-                    {selectedTeam.players.length >= 15 && (
-                      <p className="mt-1 text-xs text-red-300">Maximum Reached</p>
+                    {selectedTeam.players?.length >= 15 && (
+                      <p className="text-xs text-red-300">Maximum Reached</p>
                     )}
                   </div>
                 </div>
@@ -822,170 +1045,191 @@ const CricketManagement = () => {
 
             {/* Players Section */}
             <div>
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="flex items-center text-3xl font-bold text-white">
-                  <Users className="w-8 h-8 mr-4 text-green-400" />
-                  <span className="text-transparent bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="flex items-center text-lg font-bold text-white">
+                  <Users className="w-5 h-5 mr-2 text-emerald-400" />
+                  <span className="text-transparent bg-gradient-to-r from-emerald-400 to-blue-500 bg-clip-text">
                     Elite Squad Members
                   </span>
                 </h2>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2 text-white/70">
-                    <Activity className="w-5 h-5" />
-                    <span className="font-medium">{selectedTeam.players.length} Active Players</span>
+                <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-1.5 text-white/70">
+                    <Activity className="w-3.5 h-3.5" />
+                    <span className="text-sm font-medium">{selectedTeam.players?.length || 0} Active Players</span>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedTeam.players.length >= 15 
-                      ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
-                      : selectedTeam.players.length >= 12 
-                        ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                        : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                  <div className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                    selectedTeam.players?.length >= 15 
+                      ? 'bg-red-500/20 text-red-300 border-red-500/30' 
+                      : selectedTeam.players?.length >= 12 
+                        ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                        : 'bg-green-500/20 text-green-300 border-green-500/30'
                   }`}>
-                    {selectedTeam.players.length}/15 Squad Limit
+                    {selectedTeam.players?.length || 0}/15 Squad Limit
                   </div>
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {selectedTeam.players.map(player => (
-                  <PlayerCard key={player.id} player={player} />
-                ))}
-              </div>
+              {/* Players Grid */}
+              {selectedTeam.players?.length === 0 ? (
+                <div className="py-12 text-center">
+                  <User className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                  <h3 className="mb-1 text-lg font-semibold text-white/60">No players yet</h3>
+                  <p className="text-sm text-white/40">Add players to build your championship squad</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {selectedTeam.players?.map(player => (
+                    <PlayerCard key={player._id || player.id} player={player} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Enhanced Add Team Modal */}
+        {/* Add Team Modal */}
         {showAddTeamModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-lg animate-fadeIn">
-            <div className="relative">
-              <div className="absolute -inset-2 bg-gradient-to-r from-green-500/30 to-blue-500/30 rounded-3xl blur-xl animate-pulse"></div>
-              <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl">
-                      <Plus className="w-8 h-8 text-white" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-3xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 rounded-xl blur-lg"></div>
+              <div className="relative bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border border-white/20 rounded-xl p-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-blue-600">
+                      <Plus className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold text-white">Create New Cricket Team</h2>
-                      <p className="text-white/70">Build your championship squad</p>
+                      <h2 className="text-xl font-bold text-white">Create New Cricket Team</h2>
+                      <p className="text-sm text-white/70">Build your championship squad</p>
                     </div>
                   </div>
+                  <button
+                    onClick={() => setShowAddTeamModal(false)}
+                    className="p-2 transition-all duration-300 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-green-400">Team Name *</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={newTeam.name}
-                        onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
-                        className="w-full px-4 py-3 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-green-400 focus:outline-none"
-                        placeholder="Enter team name"
-                      />
-                    </div>
+                <div className="grid grid-cols-1 gap-4 mb-5 md:grid-cols-2">
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-emerald-400">Team Name *</label>
+                    <input
+                      type="text"
+                      value={newTeam.name}
+                      onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
+                      className="w-full px-3 py-2.5 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                      placeholder="Enter team name"
+                    />
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-blue-400">Team Abbreviation *</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-blue-400">Team Abbreviation *</label>
                     <input
                       type="text"
                       value={newTeam.shortName}
                       onChange={(e) => setNewTeam({...newTeam, shortName: e.target.value})}
-                      className="w-full px-4 py-3 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-blue-400 focus:outline-none"
+                      className="w-full px-3 py-2.5 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
                       placeholder="e.g., CSPIT"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-purple-400">Team Captain</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-purple-400">Team Captain</label>
                     <div className="relative">
-                      <Crown className="absolute w-5 h-5 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Crown className="absolute w-3.5 h-3.5 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="text"
                         value={newTeam.captain}
                         onChange={(e) => setNewTeam({...newTeam, captain: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-purple-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
                         placeholder="Captain name"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-orange-400">Head Coach</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-orange-400">Head Coach</label>
                     <div className="relative">
-                      <Award className="absolute w-5 h-5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Award className="absolute w-3.5 h-3.5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="text"
                         value={newTeam.coach}
                         onChange={(e) => setNewTeam({...newTeam, coach: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-orange-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/20"
                         placeholder="Coach name"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-cyan-400">Home Ground</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-cyan-400">Home Ground</label>
                     <div className="relative">
-                      <MapPin className="absolute w-5 h-5 transform -translate-y-1/2 left-3 top-1/2 text-cyan-400" />
+                      <MapPin className="absolute w-3.5 h-3.5 transform -translate-y-1/2 left-3 top-1/2 text-cyan-400" />
                       <input
                         type="text"
                         value={newTeam.homeGround}
                         onChange={(e) => setNewTeam({...newTeam, homeGround: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-cyan-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                         placeholder="Stadium name"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-yellow-400">Established Year</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-yellow-400">Established Year</label>
                     <div className="relative">
-                      <Calendar className="absolute w-5 h-5 text-yellow-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Calendar className="absolute w-3.5 h-3.5 text-yellow-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="text"
                         value={newTeam.established}
                         onChange={(e) => setNewTeam({...newTeam, established: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-yellow-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/20"
                         placeholder="2025"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-rose-400">Contact Email *</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-rose-400">Contact Email *</label>
                     <div className="relative">
-                      <Mail className="absolute w-5 h-5 transform -translate-y-1/2 text-rose-400 left-3 top-1/2" />
+                      <Mail className="absolute w-3.5 h-3.5 transform -translate-y-1/2 text-rose-400 left-3 top-1/2" />
                       <input
                         type="email"
                         value={newTeam.contactEmail}
                         onChange={(e) => setNewTeam({...newTeam, contactEmail: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-rose-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/20"
                         placeholder="team@example.com"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-indigo-400">Contact Phone *</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-indigo-400">Contact Phone *</label>
                     <div className="relative">
-                      <Phone className="absolute w-5 h-5 text-indigo-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Phone className="absolute w-3.5 h-3.5 text-indigo-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="tel"
                         value={newTeam.contactPhone}
                         onChange={(e) => setNewTeam({...newTeam, contactPhone: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-indigo-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
                         placeholder="+91 98765 43210"
                       />
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex pt-6 space-x-4 border-t border-white/20">
+                <div className="flex pt-4 space-x-3 border-t border-white/20">
                   <button
                     onClick={handleAddTeam}
-                    className="flex-1 py-4 text-lg font-bold text-white transition-all duration-300 transform shadow-2xl bg-gradient-to-r from-green-500 via-emerald-600 to-blue-600 rounded-2xl hover:from-green-600 hover:via-emerald-700 hover:to-blue-700 hover:scale-105"
+                    disabled={loading}
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-emerald-500 via-blue-600 to-purple-600 rounded-lg hover:from-emerald-600 hover:via-blue-700 hover:to-purple-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Create Championship Team
+                    {loading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                        <span>Creating Team...</span>
+                      </div>
+                    ) : (
+                      'Create Championship Team'
+                    )}
                   </button>
                   <button
                     onClick={() => setShowAddTeamModal(false)}
-                    className="flex-1 py-4 text-lg font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-2xl hover:from-slate-600 hover:to-slate-500"
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
                   >
                     Cancel
                   </button>
@@ -995,61 +1239,61 @@ const CricketManagement = () => {
           </div>
         )}
 
-        {/* Enhanced Add Player Modal */}
+        {/* Add Player Modal */}
         {showAddPlayerModal && selectedTeam && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-lg animate-fadeIn">
-            <div className="relative">
-              <div className="absolute -inset-2 bg-gradient-to-r from-purple-500/30 to-green-500/30 rounded-3xl blur-xl animate-pulse"></div>
-              <div className="relative bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-gradient-to-r from-purple-500 to-green-600 rounded-2xl">
-                      <Users className="w-8 h-8 text-white" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-3xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/20 to-emerald-500/20 rounded-xl blur-lg"></div>
+              <div className="relative bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border border-white/20 rounded-xl p-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-emerald-600">
+                      <Users className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-3xl font-bold text-white">Add Elite Player</h2>
-                      <p className="text-white/70">Recruit to {selectedTeam.name}</p>
-                      <div className={`mt-2 px-3 py-1 rounded-full text-sm font-medium inline-block ${
-                        selectedTeam.players.length >= 15 
-                          ? 'bg-red-500/20 text-red-300 border border-red-500/30' 
-                          : selectedTeam.players.length >= 12 
-                            ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                            : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                      <h2 className="text-xl font-bold text-white">Add Elite Player</h2>
+                      <p className="text-sm text-white/70">Recruit to {selectedTeam.name}</p>
+                      <div className={`mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium inline-block border ${
+                        selectedTeam.players?.length >= 15 
+                          ? 'bg-red-500/20 text-red-300 border-red-500/30' 
+                          : selectedTeam.players?.length >= 12 
+                            ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                            : 'bg-green-500/20 text-green-300 border-green-500/30'
                       }`}>
-                        Current Squad: {selectedTeam.players.length}/15 Players
+                        Current Squad: {selectedTeam.players?.length || 0}/15 Players
                       </div>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowAddPlayerModal(false)}
-                    className="p-2 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/10 rounded-xl"
+                    className="p-2 transition-all duration-300 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
                   >
-                    <X className="w-6 h-6" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-green-400">Player Name *</label>
+                <div className="grid grid-cols-1 gap-4 mb-5 md:grid-cols-2">
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-emerald-400">Player Name *</label>
                     <div className="relative">
-                      <User className="absolute w-5 h-5 text-green-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <User className="absolute w-3.5 h-3.5 transform -translate-y-1/2 text-emerald-400 left-3 top-1/2" />
                       <input
                         type="text"
                         value={newPlayer.name}
                         onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-green-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                         placeholder="Enter player name"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-blue-400">Playing Role *</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-blue-400">Playing Role *</label>
                     <div className="relative">
-                      <Target className="absolute w-5 h-5 text-blue-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Target className="absolute w-3.5 h-3.5 text-blue-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <select
                         value={newPlayer.role}
                         onChange={(e) => setNewPlayer({...newPlayer, role: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border appearance-none bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-blue-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg appearance-none bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
                       >
                         <option value="">Select role</option>
                         <option value="Batsman">Batsman</option>
@@ -1060,79 +1304,78 @@ const CricketManagement = () => {
                       </select>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-purple-400">Age</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-purple-400">Age</label>
                     <div className="relative">
-                      <Star className="absolute w-5 h-5 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Star className="absolute w-3.5 h-3.5 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="number"
                         value={newPlayer.age}
                         onChange={(e) => setNewPlayer({...newPlayer, age: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-purple-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
                         placeholder="Player age"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-orange-400">Experience (Years)</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-orange-400">Experience (Years)</label>
                     <div className="relative">
-                      <Award className="absolute w-5 h-5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Award className="absolute w-3.5 h-3.5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
-                        type="number"
+                        type="text"
                         value={newPlayer.experience}
                         onChange={(e) => setNewPlayer({...newPlayer, experience: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-orange-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/20"
                         placeholder="Years of experience"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-cyan-400">Contact Phone</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-cyan-400">Contact Phone</label>
                     <div className="relative">
-                      <Phone className="absolute w-5 h-5 transform -translate-y-1/2 left-3 top-1/2 text-cyan-400" />
+                      <Phone className="absolute w-3.5 h-3.5 transform -translate-y-1/2 left-3 top-1/2 text-cyan-400" />
                       <input
                         type="tel"
                         value={newPlayer.contactPhone}
                         onChange={(e) => setNewPlayer({...newPlayer, contactPhone: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-cyan-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
                         placeholder="+91 98765 43210"
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="block mb-3 text-sm font-semibold text-yellow-400">Contact Email</label>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-yellow-400">Contact Email</label>
                     <div className="relative">
-                      <Mail className="absolute w-5 h-5 text-yellow-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <Mail className="absolute w-3.5 h-3.5 text-yellow-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
                         type="email"
                         value={newPlayer.contactEmail}
                         onChange={(e) => setNewPlayer({...newPlayer, contactEmail: e.target.value})}
-                        className="w-full py-3 pl-12 pr-4 text-lg text-white transition-all duration-300 border bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 rounded-xl focus:border-yellow-400 focus:outline-none"
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/20"
                         placeholder="player@email.com"
                       />
                     </div>
                   </div>
                 </div>
                 
-                {/* Team Size Warning */}
-                {selectedTeam.players.length >= 12 && (
-                  <div className={`mt-6 p-4 rounded-xl border ${
-                    selectedTeam.players.length >= 15 
+                {selectedTeam.players?.length >= 12 && (
+                  <div className={`mt-3 mb-4 p-3 rounded-lg border ${
+                    selectedTeam.players?.length >= 15 
                       ? 'bg-red-500/10 border-red-500/30 text-red-200'
                       : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
                   }`}>
-                    <div className="flex items-center space-x-3">
-                      <Shield className="w-5 h-5" />
+                    <div className="flex items-center space-x-2">
+                      <Shield className="flex-shrink-0 w-4 h-4" />
                       <div>
-                        {selectedTeam.players.length >= 15 ? (
+                        {selectedTeam.players?.length >= 15 ? (
                           <div>
-                            <h4 className="font-semibold">Maximum Squad Size Reached!</h4>
-                            <p className="text-sm opacity-80">This team already has 15 players (maximum allowed). Remove a player before adding new ones.</p>
+                            <h4 className="text-sm font-semibold">Maximum Squad Size Reached!</h4>
+                            <p className="text-xs opacity-80">This team already has 15 players (maximum allowed). Remove a player before adding new ones.</p>
                           </div>
                         ) : (
                           <div>
-                            <h4 className="font-semibold">Approaching Squad Limit</h4>
-                            <p className="text-sm opacity-80">Only {15 - selectedTeam.players.length} more player(s) can be added to reach the 15-player limit.</p>
+                            <h4 className="text-sm font-semibold">Approaching Squad Limit</h4>
+                            <p className="text-xs opacity-80">Only {15 - (selectedTeam.players?.length || 0)} more player(s) can be added to reach the 15-player limit.</p>
                           </div>
                         )}
                       </div>
@@ -1140,21 +1383,29 @@ const CricketManagement = () => {
                   </div>
                 )}
                 
-                <div className="flex pt-6 space-x-4 border-t border-white/20">
+                <div className="flex pt-4 space-x-3 border-t border-white/20">
                   <button
                     onClick={handleAddPlayer}
-                    disabled={selectedTeam.players.length >= 15}
-                    className={`flex-1 py-4 text-lg font-bold text-white transition-all duration-300 transform shadow-2xl rounded-2xl hover:scale-105 ${
-                      selectedTeam.players.length >= 15
+                    disabled={selectedTeam.players?.length >= 15 || loading}
+                    className={`flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 transform shadow-lg rounded-lg hover:scale-105 ${
+                      selectedTeam.players?.length >= 15 || loading
                         ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60'
-                        : 'bg-gradient-to-r from-purple-500 via-pink-600 to-green-600 hover:from-purple-600 hover:via-pink-700 hover:to-green-700'
+                        : 'bg-gradient-to-r from-purple-500 via-pink-600 to-emerald-600 hover:from-purple-600 hover:via-pink-700 hover:to-emerald-700'
                     }`}
                   >
-                    {selectedTeam.players.length >= 15 ? 'Squad Full - Cannot Add' : 'Recruit Elite Player'}
+                    {loading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                        <span>Adding Player...</span>
+                      </div>
+                    ) : selectedTeam.players?.length >= 15 ? 
+                      'Squad Full - Cannot Add' : 
+                      'Recruit Elite Player'
+                    }
                   </button>
                   <button
                     onClick={() => setShowAddPlayerModal(false)}
-                    className="flex-1 py-4 text-lg font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-2xl hover:from-slate-600 hover:to-slate-500"
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
                   >
                     Cancel
                   </button>
@@ -1163,29 +1414,450 @@ const CricketManagement = () => {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Custom CSS Animations */}
-      <style jsx>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(180deg); }
-        }
-        
-        @keyframes grid-move {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-        
-        @keyframes fadeIn {
-          0% { opacity: 0; transform: scale(0.9); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
+        {/* Enhanced Add Sub-Admin Modal */}
+        {showAddSubAdminModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-4xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-cyan-500/20 rounded-2xl blur-lg"></div>
+              <div className="relative bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+                
+                {/* Enhanced Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <div className="p-2.5 shadow-lg bg-gradient-to-r from-purple-500 via-pink-600 to-cyan-600 rounded-xl">
+                        <UserCheck className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/50 to-cyan-500/50 rounded-xl blur-sm -z-10"></div>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 bg-clip-text">
+                        Add Cricket Sub-Administrator
+                      </h2>
+                      <p className="text-sm text-white/80 mt-0.5">Create secure admin account with custom permissions</p>
+                      <div className="flex items-center mt-1.5 space-x-3 text-xs text-slate-400">
+                        <div className="flex items-center space-x-1">
+                          <User className="w-3 h-3" />
+                          <span>Created by: Dsp2810</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-3 h-3" />
+                          <span>2025-08-24 12:38:34</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Shield className="w-3 h-3 text-green-400" />
+                          <span className="text-green-400">Secure Registration</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAddSubAdminModal(false)}
+                    className="p-2.5 transition-all duration-300 rounded-lg text-white/60 hover:text-white hover:bg-white/10 hover:scale-110"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Enhanced Form */}
+                <div className="space-y-6">
+                  
+                  {/* Personal Information Section */}
+                  <div className="p-5 border rounded-xl bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-white/10">
+                    <h3 className="flex items-center mb-4 text-lg font-bold text-white">
+                      <User className="w-5 h-5 mr-2.5 text-emerald-400" />
+                      Personal Information
+                    </h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block mb-2 text-sm font-bold text-emerald-400">Full Name *</label>
+                        <div className="relative group">
+                          <User className="absolute w-4 h-4 transition-transform transform -translate-y-1/2 text-emerald-400 left-3 top-1/2 group-focus-within:scale-110" />
+                          <input
+                            type="text"
+                            value={newSubAdmin.name}
+                            onChange={(e) => setNewSubAdmin({...newSubAdmin, name: e.target.value})}
+                            className="w-full py-3 pl-10 pr-3 text-white transition-all duration-300 border-2 rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-emerald-400 focus:outline-none focus:ring-4 focus:ring-emerald-400/20 hover:border-white/30"
+                            placeholder="Enter full name (e.g., Rohit Sharma)"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-bold text-blue-400">Email Address *</label>
+                        <div className="relative group">
+                          <Mail className="absolute w-4 h-4 text-blue-400 transition-transform transform -translate-y-1/2 left-3 top-1/2 group-focus-within:scale-110" />
+                          <input
+                            type="email"
+                            value={newSubAdmin.email}
+                            onChange={(e) => setNewSubAdmin({...newSubAdmin, email: e.target.value})}
+                            className="w-full py-3 pl-10 pr-3 text-white transition-all duration-300 border-2 rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-400/20 hover:border-white/30"
+                            placeholder="admin@cricket.sports.com"
+                            required
+                          />
+                        </div>
+                        <p className="mt-1.5 text-xs text-blue-300">This will be used for login authentication</p>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-bold text-cyan-400">Phone Number</label>
+                        <div className="relative group">
+                          <Phone className="absolute w-4 h-4 transition-transform transform -translate-y-1/2 text-cyan-400 left-3 top-1/2 group-focus-within:scale-110" />
+                          <input
+                            type="tel"
+                            value={newSubAdmin.phone}
+                            onChange={(e) => setNewSubAdmin({...newSubAdmin, phone: e.target.value})}
+                            className="w-full py-3 pl-10 pr-3 text-white transition-all duration-300 border-2 rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-400/20 hover:border-white/30"
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-bold text-orange-400">Specialization</label>
+                        <div className="relative group">
+                          <Settings className="absolute w-4 h-4 text-orange-400 transition-transform transform -translate-y-1/2 left-3 top-1/2 group-focus-within:scale-110" />
+                          <select
+                            value={newSubAdmin.specialization}
+                            onChange={(e) => setNewSubAdmin({...newSubAdmin, specialization: e.target.value})}
+                            className="w-full py-3 pl-10 pr-3 text-white transition-all duration-300 border-2 rounded-lg appearance-none bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-4 focus:ring-orange-400/20 hover:border-white/30"
+                          >
+                            <option value="" className="bg-slate-800">Select specialization</option>
+                            <option value="Team Management" className="bg-slate-800">Team Management</option>
+                            <option value="Player Development" className="bg-slate-800">Player Development</option>
+                            <option value="Match Analytics" className="bg-slate-800">Match Analytics & Statistics</option>
+                            <option value="Performance Analysis" className="bg-slate-800">Performance Analysis</option>
+                            <option value="Tournament Management" className="bg-slate-800">Tournament Management</option>
+                            <option value="Youth Development" className="bg-slate-800">Youth Development</option>
+                            <option value="Technical Analysis" className="bg-slate-800">Technical Analysis</option>
+                            <option value="General Management" className="bg-slate-800">General Management</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Security Information Section */}
+                  <div className="p-5 border rounded-xl bg-gradient-to-r from-red-900/20 to-pink-900/20 border-red-500/30">
+                    <h3 className="flex items-center mb-4 text-lg font-bold text-white">
+                      <Lock className="w-5 h-5 mr-2.5 text-red-400" />
+                      Security Credentials
+                    </h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="block mb-2 text-sm font-bold text-purple-400">Secure Password *</label>
+                        <div className="relative group">
+                          <Lock className="absolute w-4 h-4 text-purple-400 transition-transform transform -translate-y-1/2 left-3 top-1/2 group-focus-within:scale-110" />
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={newSubAdmin.password}
+                            onChange={(e) => setNewSubAdmin({...newSubAdmin, password: e.target.value})}
+                            className="w-full py-3 pl-10 pr-12 text-white transition-all duration-300 border-2 rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-purple-400 focus:outline-none focus:ring-4 focus:ring-purple-400/20 hover:border-white/30"
+                            placeholder="Create strong password (min 8 chars)"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute transition-colors transform -translate-y-1/2 right-3 top-1/2 text-white/60 hover:text-white"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        <div className="mt-1.5 text-xs text-purple-300">
+                          Password strength: {newSubAdmin.password.length >= 8 ? '🟢 Strong' : newSubAdmin.password.length >= 6 ? '🟡 Medium' : '🔴 Weak'}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-bold text-pink-400">Confirm Password *</label>
+                        <div className="relative group">
+                          <Key className="absolute w-4 h-4 text-pink-400 transition-transform transform -translate-y-1/2 left-3 top-1/2 group-focus-within:scale-110" />
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={newSubAdmin.confirmPassword}
+                            onChange={(e) => setNewSubAdmin({...newSubAdmin, confirmPassword: e.target.value})}
+                            className="w-full py-3 pl-10 pr-3 text-white transition-all duration-300 border-2 rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-pink-400 focus:outline-none focus:ring-4 focus:ring-pink-400/20 hover:border-white/30"
+                            placeholder="Confirm your password"
+                            required
+                          />
+                        </div>
+                        <div className="mt-1.5 text-xs">
+                          {newSubAdmin.confirmPassword && (
+                            <span className={newSubAdmin.password === newSubAdmin.confirmPassword ? 'text-green-400' : 'text-red-400'}>
+                              {newSubAdmin.password === newSubAdmin.confirmPassword ? '✅ Passwords match' : '❌ Passwords do not match'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Security Guidelines */}
+                    <div className="p-3 mt-4 border rounded-lg bg-slate-800/50 border-yellow-500/30">
+                      <h4 className="flex items-center mb-2 text-sm font-bold text-yellow-400">
+                        <Shield className="w-3.5 h-3.5 mr-2" />
+                        Security Guidelines
+                      </h4>
+                      <ul className="space-y-0.5 text-xs text-yellow-200">
+                        <li>• Password must be at least 8 characters long</li>
+                        <li>• Include uppercase, lowercase, numbers, and special characters</li>
+                        <li>• Avoid using personal information or common words</li>
+                        <li>• Sub-admin will be required to change password on first login</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Enhanced Permissions Section */}
+                  <div className="p-5 border rounded-xl bg-gradient-to-r from-green-900/20 to-emerald-900/20 border-green-500/30">
+                    <h3 className="flex items-center mb-4 text-lg font-bold text-white">
+                      <Shield className="w-5 h-5 mr-2.5 text-green-400" />
+                      Access Permissions & Privileges
+                    </h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      
+                      {/* Core Permissions */}
+                      <div className="space-y-3">
+                        <h4 className="text-base font-semibold text-green-400">Core Management</h4>
+                        
+                        <div className="flex items-center justify-between p-3 transition-colors border rounded-lg bg-slate-700/30 border-white/10 hover:bg-slate-600/30">
+                          <div className="flex items-center space-x-2.5">
+                            <Users className="w-4 h-4 text-emerald-400" />
+                            <div>
+                              <span className="text-sm font-medium text-white">Team Management</span>
+                              <p className="text-xs text-slate-400">Create, edit, and manage cricket teams</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newSubAdmin.permissions.manageTeams}
+                              onChange={(e) => setNewSubAdmin({
+                                ...newSubAdmin, 
+                                permissions: {...newSubAdmin.permissions, manageTeams: e.target.checked}
+                              })}
+                              className="sr-only peer"
+                            />
+                            <div className="relative w-10 h-5 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-300 dark:peer-focus:ring-emerald-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                          </label>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 transition-colors border rounded-lg bg-slate-700/30 border-white/10 hover:bg-slate-600/30">
+                          <div className="flex items-center space-x-2.5">
+                            <User className="w-4 h-4 text-blue-400" />
+                            <div>
+                              <span className="text-sm font-medium text-white">Player Management</span>
+                              <p className="text-xs text-slate-400">Add, edit, and manage player profiles</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newSubAdmin.permissions.managePlayers}
+                              onChange={(e) => setNewSubAdmin({
+                                ...newSubAdmin, 
+                                permissions: {...newSubAdmin.permissions, managePlayers: e.target.checked}
+                              })}
+                              className="sr-only peer"
+                            />
+                            <div className="relative w-10 h-5 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Advanced Permissions */}
+                      <div className="space-y-3">
+                        <h4 className="text-base font-semibold text-purple-400">Advanced Features</h4>
+                        
+                        <div className="flex items-center justify-between p-3 transition-colors border rounded-lg bg-slate-700/30 border-white/10 hover:bg-slate-600/30">
+                          <div className="flex items-center space-x-2.5">
+                            <BarChart3 className="w-4 h-4 text-purple-400" />
+                            <div>
+                              <span className="text-sm font-medium text-white">Analytics & Reports</span>
+                              <p className="text-xs text-slate-400">View detailed statistics and reports</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newSubAdmin.permissions.viewReports}
+                              onChange={(e) => setNewSubAdmin({
+                                ...newSubAdmin, 
+                                permissions: {...newSubAdmin.permissions, viewReports: e.target.checked}
+                              })}
+                              className="sr-only peer"
+                            />
+                            <div className="relative w-10 h-5 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                          </label>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 transition-colors border rounded-lg bg-slate-700/30 border-white/10 hover:bg-slate-600/30">
+                          <div className="flex items-center space-x-2.5">
+                            <Trophy className="w-4 h-4 text-orange-400" />
+                            <div>
+                              <span className="text-sm font-medium text-white">Match Management</span>
+                              <p className="text-xs text-slate-400">Schedule and manage cricket matches</p>
+                            </div>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newSubAdmin.permissions.manageMatches}
+                              onChange={(e) => setNewSubAdmin({
+                                ...newSubAdmin, 
+                                permissions: {...newSubAdmin.permissions, manageMatches: e.target.checked}
+                              })}
+                              className="sr-only peer"
+                            />
+                            <div className="relative w-10 h-5 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 dark:peer-focus:ring-orange-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-600"></div>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Permission Summary */}
+                    <div className="p-3 mt-4 border rounded-lg bg-emerald-900/20 border-emerald-500/30">
+                      <h4 className="flex items-center mb-2 text-sm font-bold text-emerald-400">
+                        <Activity className="w-3.5 h-3.5 mr-2" />
+                        Permission Summary
+                      </h4>
+                      <div className="text-sm text-emerald-200">
+                        Selected Permissions: {Object.values(newSubAdmin.permissions).filter(Boolean).length} out of 4
+                        <div className="mt-1.5 text-xs text-emerald-300">
+                          {Object.entries(newSubAdmin.permissions).filter(([_, value]) => value).map(([key, _]) => 
+                            key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
+                          ).join(' • ')}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex pt-4 space-x-3 border-t border-white/20">
+                    <button
+                      onClick={handleAddSubAdmin}
+                      disabled={loading}
+                      className="flex-1 py-3 text-base font-bold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-purple-500 via-pink-600 to-cyan-600 rounded-xl hover:from-purple-600 hover:via-pink-700 hover:to-cyan-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl"
+                    >
+                      {loading ? (
+                        <div className="flex items-center justify-center space-x-2.5">
+                          <Loader className="w-5 h-5 animate-spin" />
+                          <span>Creating Cricket Sub-Administrator...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center space-x-2.5">
+                          <UserCheck className="w-5 h-5" />
+                          <span>Create Cricket Sub-Administrator</span>
+                        </div>
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowAddSubAdminModal(false)}
+                      className="flex-1 py-3 text-base font-bold text-white transition-all duration-300 transform border-2 bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-xl hover:from-slate-600 hover:to-slate-500 hover:scale-105"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {/* Footer Info */}
+                  <div className="p-3 text-center border rounded-lg bg-slate-800/30 border-white/10">
+                    <div className="space-y-1 text-xs text-slate-400">
+                      <div>🔐 All sub-admin accounts are encrypted and securely stored</div>
+                      <div>📧 Login credentials will be sent to the provided email address</div>
+                      <div>⚡ Sub-admin will have immediate access upon account creation</div>
+                      <div className="pt-1.5 mt-1.5 border-t border-slate-700">
+                        Administrator: Dsp2810 | Created: 2025-08-24 12:38:34 | Status: Secure Registration
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Photo Upload Modal */}
+        {showPhotoModal && selectedPlayerForPhoto && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-md">
+              <div className="absolute rounded-lg -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-lg"></div>
+              <div className="relative p-5 border rounded-lg bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border-white/20">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-1.5 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600">
+                      <Camera className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Update Player Photo</h3>
+                      <p className="text-sm text-white/70">{selectedPlayerForPhoto.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowPhotoModal(false)}
+                    className="p-1.5 transition-all duration-300 text-white/60 hover:text-white hover:bg-white/10 rounded-lg"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className="w-20 h-20 mx-auto overflow-hidden border-2 rounded-lg bg-gradient-to-r from-slate-600 to-slate-700 border-white/20">
+                      {playerPhotos[selectedPlayerForPhoto.id] ? (
+                        <img 
+                          src={
+                            playerPhotos[selectedPlayerForPhoto.id] ? (
+                              playerPhotos[selectedPlayerForPhoto.id]
+                            ) : (
+                              ''
+                            )
+                          } 
+                          alt={selectedPlayerForPhoto.name}
+                          className="object-cover w-full h-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center w-full h-full">
+                          <User className="w-10 h-10 text-white/40" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block w-full">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUpload(selectedPlayerForPhoto.id, e.target.files[0])}
+                        className="hidden"
+                      />
+                      <div className="flex items-center justify-center w-full py-2.5 text-sm font-semibold text-white transition-all duration-300 transform border rounded-lg cursor-pointer bg-gradient-to-r from-blue-500 to-purple-600 border-blue-500/30 hover:from-blue-600 hover:to-purple-700 hover:scale-105">
+                        <Upload className="w-3.5 h-3.5 mr-2" />
+                        Upload New Photo
+                      </div>
+                    </label>
+
+                    {playerPhotos[selectedPlayerForPhoto.id] && (
+                      <button
+                        onClick={() => {
+                          handleRemovePhoto(selectedPlayerForPhoto.id);
+                          setShowPhotoModal(false);
+                        }}
+                        className="flex items-center justify-center w-full py-2.5 text-sm font-semibold text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-red-500 to-rose-600 border-red-500/30 hover:from-red-600 hover:to-rose-700"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2" />
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

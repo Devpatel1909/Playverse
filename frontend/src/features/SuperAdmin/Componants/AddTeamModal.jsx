@@ -60,3 +60,4 @@ export default function AddTeamModal({ open, onOpenChange, onSubmit }) {
     </Dialog>
   );
 }
+  
