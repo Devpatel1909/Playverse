@@ -41,7 +41,9 @@ function App() {
       {/* Super Admin - now with particle text effect */}
       <Route path="/superadmin/login" element={<SuperAdminEntry />} />
       <Route path="/superadmin/sports" element={
-        <SuperAdminSportsOverview />
+        <ProtectedRoute>
+          <SuperAdminSportsOverview />
+        </ProtectedRoute>
       } />
       <Route path="/superadmin/dashboard" element={
         <ProtectedRoute>
@@ -63,12 +65,12 @@ function App() {
       } />
 
       <Route path="/football-management" element={
-        <AdminProtectedRoute requiredSport="football">
+        <ProtectedRoute>
           <FootballManagement />
-        </AdminProtectedRoute>
+        </ProtectedRoute>
       } />
 
-      {/* Additional sport management routes */}
+      {/* Additional sport management routes
       <Route path="/basketball-management" element={
         <AdminProtectedRoute requiredSport="basketball">
           <AdminSportsOverview />
@@ -78,7 +80,7 @@ function App() {
         <AdminProtectedRoute requiredSport="tennis">
           <AdminSportsOverview />
         </AdminProtectedRoute>
-      } />
+      } /> */}
 
       {/* 404 */}
       <Route path="*" element={<div className="flex items-center justify-center min-h-screen text-white bg-slate-900">404 - Not Found</div>} />

@@ -3,43 +3,50 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 const AdminProtectedRoute = ({ children, requiredSport }) => {
   const location = useLocation();
-  
-  // Check if admin is authenticated
-  const isAdminAuthenticated = () => {
+
+  const checkAuth = () => {
+    // Admin auth
     const adminToken = localStorage.getItem('adminToken');
     const adminUserData = localStorage.getItem('adminUser');
-    
-    if (!adminToken || !adminUserData) return false;
-    
+    // Super admin auth (fallback)
+    const superAdminToken = localStorage.getItem('superadmin_token');
+    const superAdminUserData = localStorage.getItem('superadmin_user');
+
+    // If super admin is logged in, grant access regardless of admin session
+    if (superAdminToken && superAdminUserData) {
+      return { authenticated: true, via: 'superadmin', role: 'superadmin' };
+    }
+
+    if (!adminToken || !adminUserData) {
+      return { authenticated: false, via: 'none' };
+    }
+
     try {
       const userData = JSON.parse(adminUserData);
-      
-      // If a specific sport is required, check permissions
       if (requiredSport) {
-        return userData.sport === requiredSport || 
-               userData.sport === 'all' || 
-               (userData.permissions && userData.permissions.includes(requiredSport));
+        const sportOk = userData.sport === requiredSport ||
+          userData.sport === 'all' ||
+          (Array.isArray(userData.permissions) && userData.permissions.includes(requiredSport));
+        return { authenticated: !!sportOk, via: 'admin', role: userData.role || 'sport_admin', sportOk };
       }
-      
-      return true;
-    } catch (error) {
-      console.error('Error parsing admin user data:', error);
-      return false;
+      return { authenticated: true, via: 'admin', role: userData.role || 'sport_admin' };
+    } catch (e) {
+      console.error('Error parsing admin user data:', e);
+      return { authenticated: false, via: 'error' };
     }
   };
 
-  const authenticated = isAdminAuthenticated();
+  const authResult = checkAuth();
 
-  console.log('AdminProtectedRoute check:', { 
-    authenticated, 
-    location: location.pathname,
+  console.log('AdminProtectedRoute check:', {
+    ...authResult,
+    path: location.pathname,
     requiredSport,
-    adminToken: localStorage.getItem('adminToken'),
-    adminUser: localStorage.getItem('adminUser')
+    adminTokenPresent: !!localStorage.getItem('adminToken'),
+    superAdminTokenPresent: !!localStorage.getItem('superadmin_token')
   });
 
-  if (!authenticated) {
-    // Redirect to admin login page with return path
+  if (!authResult.authenticated) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
   }
 

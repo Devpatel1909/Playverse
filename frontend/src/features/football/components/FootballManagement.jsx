@@ -245,7 +245,7 @@ const FootballManagement = () => {
                   placeholder="Search teams by name or abbreviation..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1 bg-transparent text-white placeholder-white/40 focus:outline-none"
+                  className="flex-1 text-white bg-transparent placeholder-white/40 focus:outline-none"
                 />
               </div>
             </div>
@@ -342,7 +342,7 @@ const FootballManagement = () => {
                     {/* Player Header */}
                     <div className="flex items-center mb-4 space-x-4">
                       <div className="relative">
-                        <div className="flex items-center justify-center w-16 h-16 shadow-lg bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full">
+                        <div className="flex items-center justify-center w-16 h-16 rounded-full shadow-lg bg-gradient-to-br from-blue-500 to-cyan-600">
                           <User className="w-8 h-8 text-white" />
                         </div>
                         <div className="absolute flex items-center justify-center w-6 h-6 font-bold text-white bg-yellow-500 rounded-full -top-1 -right-1">
@@ -376,9 +376,9 @@ const FootballManagement = () => {
 
       {/* Add Team Modal */}
       {showAddTeamModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 w-full max-w-md">
-            <h3 className="text-2xl font-bold mb-6">Add New Football Team</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-lg">
+          <div className="w-full max-w-md p-8 border bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-2xl border-white/20 rounded-3xl">
+            <h3 className="mb-6 text-2xl font-bold">Add New Football Team</h3>
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.target);
@@ -391,27 +391,27 @@ const FootballManagement = () => {
                 <input
                   name="name"
                   placeholder="Team Name"
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50"
+                  className="w-full p-3 text-white border bg-white/10 border-white/20 rounded-xl placeholder-white/50"
                   required
                 />
                 <input
                   name="shortName"
                   placeholder="Short Name (e.g., FCA)"
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50"
+                  className="w-full p-3 text-white border bg-white/10 border-white/20 rounded-xl placeholder-white/50"
                   required
                 />
               </div>
-              <div className="flex space-x-4 mt-6">
+              <div className="flex mt-6 space-x-4">
                 <button
                   type="button"
                   onClick={() => setShowAddTeamModal(false)}
-                  className="flex-1 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all duration-300"
+                  className="flex-1 p-3 transition-all duration-300 bg-white/10 rounded-xl hover:bg-white/20"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300"
+                  className="flex-1 p-3 transition-all duration-300 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600"
                 >
                   Add Team
                 </button>
@@ -423,9 +423,9 @@ const FootballManagement = () => {
 
       {/* Add Player Modal */}
       {showAddPlayerModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-2xl border border-white/20 rounded-3xl p-8 w-full max-w-md">
-            <h3 className="text-2xl font-bold mb-6">Add New Player</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-lg">
+          <div className="w-full max-w-md p-8 border bg-gradient-to-br from-slate-900/95 to-slate-800/95 backdrop-blur-2xl border-white/20 rounded-3xl">
+            <h3 className="mb-6 text-2xl font-bold">Add New Player</h3>
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.target);
@@ -440,12 +440,12 @@ const FootballManagement = () => {
                 <input
                   name="name"
                   placeholder="Player Name"
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50"
+                  className="w-full p-3 text-white border bg-white/10 border-white/20 rounded-xl placeholder-white/50"
                   required
                 />
                 <select
                   name="position"
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white"
+                  className="w-full p-3 text-white border bg-white/10 border-white/20 rounded-xl"
                   required
                 >
                   <option value="">Select Position</option>
@@ -458,28 +458,28 @@ const FootballManagement = () => {
                   name="jerseyNumber"
                   type="number"
                   placeholder="Jersey Number"
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50"
+                  className="w-full p-3 text-white border bg-white/10 border-white/20 rounded-xl placeholder-white/50"
                   required
                 />
                 <input
                   name="age"
                   type="number"
                   placeholder="Age"
-                  className="w-full p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/50"
+                  className="w-full p-3 text-white border bg-white/10 border-white/20 rounded-xl placeholder-white/50"
                   required
                 />
               </div>
-              <div className="flex space-x-4 mt-6">
+              <div className="flex mt-6 space-x-4">
                 <button
                   type="button"
                   onClick={() => setShowAddPlayerModal(false)}
-                  className="flex-1 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-all duration-300"
+                  className="flex-1 p-3 transition-all duration-300 bg-white/10 rounded-xl hover:bg-white/20"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300"
+                  className="flex-1 p-3 transition-all duration-300 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl hover:from-blue-600 hover:to-cyan-600"
                 >
                   Add Player
                 </button>
