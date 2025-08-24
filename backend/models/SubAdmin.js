@@ -89,4 +89,5 @@ const SubAdminSchema = new mongoose.Schema({
 SubAdminSchema.index({ email: 1, sport: 1 });
 SubAdminSchema.index({ sport: 1, status: 1 });
 
-module.exports = mongoose.model('SubAdmin', SubAdminSchema);
+// Reuse existing model if already compiled (avoids OverwriteModelError in dev hot-reload)
+module.exports = mongoose.models.SubAdmin || mongoose.model('SubAdmin', SubAdminSchema);
