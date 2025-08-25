@@ -417,118 +417,86 @@ const CricketManagement = () => {
     }
   };
 
-  // Square Team Card Component
+  // Horizontal Team Card Component matching screenshot design
   const TeamCard = ({ team }) => {
     return (
-      <div className="cursor-pointer group" onClick={() => {
-        setSelectedTeam(team);
-        setActiveView('team-details');
-      }}>
-        <div className="relative overflow-hidden transition-all duration-300 border aspect-square bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
-          
-          {/* Background overlay */}
-          <div className="absolute -inset-0.5 bg-gradient-to-br from-emerald-500 via-blue-600 to-purple-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
-          
-          <div className="relative flex flex-col h-full p-4">
+      <div 
+        className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-6 hover:bg-slate-700/50 transition-all duration-300 cursor-pointer"
+        onClick={() => {
+          setSelectedTeam(team);
+          setActiveView('team-details');
+        }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            {/* Team Logo */}
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">{team.shortName || team.name?.slice(0, 3).toUpperCase()}</span>
+            </div>
             
-            {/* Header with team logo and basic info */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="relative flex items-center justify-center w-10 h-10 transition-transform duration-300 rounded-lg shadow-lg bg-gradient-to-br from-emerald-500 via-blue-600 to-purple-700 group-hover:scale-110">
-                  <Trophy className="w-5 h-5 text-white drop-shadow-lg" />
-                  <div className="absolute flex items-center justify-center w-3 h-3 bg-yellow-400 rounded-full -top-1 -right-1">
-                    <Crown className="w-1.5 h-1.5 text-yellow-900" />
-                  </div>
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-white truncate transition-colors duration-300 group-hover:text-emerald-400">
-                    {team.name}
-                  </h3>
-                  <div className="flex items-center space-x-1">
-                    <span className="px-1.5 py-0.5 text-xs font-bold border rounded text-emerald-400 bg-emerald-500/20 border-emerald-500/40 truncate max-w-[60px]">
-                      {team.shortName}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex flex-col items-end text-right">
-                <div className="text-lg font-bold text-transparent bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-600 bg-clip-text">
-                  {team.players?.length || 0}
-                </div>
-                <div className="text-xs font-medium text-white/70">Players</div>
+            {/* Team Info */}
+            <div>
+              <h3 className="text-lg font-bold text-white">{team.name}</h3>
+              <div className="flex items-center space-x-2 text-sm text-slate-400">
+                <Star className="w-4 h-4 text-yellow-500" />
+                <span>Elite</span>
               </div>
             </div>
+          </div>
 
-            {/* Status indicator */}
-            <div className="flex items-center mb-3 space-x-1">
-              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-              <span className="text-xs font-medium text-yellow-400">Elite</span>
-            </div>
+          {/* Player Count */}
+          <div className="text-right">
+            <div className="text-2xl font-bold text-cyan-400">{team.players?.length || 0}</div>
+            <div className="text-sm text-slate-400">Players</div>
+          </div>
+        </div>
 
-            {/* Main content - stats grid */}
-            <div className="flex flex-col justify-center flex-1">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-emerald-500/10 to-green-600/10 border-emerald-500/30">
-                  <Shield className="w-3 h-3 mx-auto mb-1 text-emerald-400" />
-                  <div className="text-xs font-medium text-emerald-400">Captain</div>
-                  <div className="text-xs font-bold text-white truncate">{team.captain || 'TBA'}</div>
-                </div>
-                
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/30">
-                  <Award className="w-3 h-3 mx-auto mb-1 text-blue-400" />
-                  <div className="text-xs font-medium text-blue-400">Coach</div>
-                  <div className="text-xs font-bold text-white truncate">{team.coach || 'TBA'}</div>
-                </div>
-                
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/30">
-                  <Users className="w-3 h-3 mx-auto mb-1 text-purple-400" />
-                  <div className="text-xs font-medium text-purple-400">Squad</div>
-                  <div className={`text-xs font-bold ${
-                    (team.players?.length || 0) >= 15 ? 'text-red-400' : 
-                    (team.players?.length || 0) >= 12 ? 'text-yellow-400' : 'text-white'
-                  }`}>
-                    {team.players?.length || 0}/15
-                  </div>
-                </div>
-                
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/30">
-                  <Phone className="w-3 h-3 mx-auto mb-1 text-orange-400" />
-                  <div className="text-xs font-medium text-orange-400">Contact</div>
-                  <div className="text-xs font-bold text-white truncate">{team.contactPhone || 'N/A'}</div>
-                </div>
-              </div>
-            </div>
+        {/* Team Details Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-slate-700/30 rounded-lg p-3 text-center">
+            <div className="text-green-400 font-semibold truncate">{team.captain || 'Officia esse cupidtat'}</div>
+            <div className="text-xs text-slate-400 mt-1">Captain</div>
+          </div>
+          <div className="bg-slate-700/30 rounded-lg p-3 text-center">
+            <div className="text-blue-400 font-semibold truncate">{team.homeGround || 'Velit error dolore e'}</div>
+            <div className="text-xs text-slate-400 mt-1">Venue</div>
+          </div>
+          <div className="bg-slate-700/30 rounded-lg p-3 text-center">
+            <div className="text-purple-400 font-semibold">Y15</div>
+            <div className="text-xs text-slate-400 mt-1">Season</div>
+          </div>
+          <div className="bg-slate-700/30 rounded-lg p-3 text-center">
+            <div className="text-orange-400 font-semibold truncate">{team.contactPhone || '+1 (485) 444-5901'}</div>
+            <div className="text-xs text-slate-400 mt-1">Contact</div>
+          </div>
+        </div>
 
-            {/* Footer */}
-            <div className="pt-2 mt-3 border-t border-white/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div>
-                  <span className="text-xs font-medium text-emerald-400">Active</span>
-                </div>
-                
-                <div className="flex items-center space-x-1">
-                  <div className="px-1.5 py-0.5 border rounded bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30">
-                    <span className="text-xs font-medium text-white">Pro</span>
-                  </div>
-                  <div className="p-1 transition-colors rounded bg-white/10 group-hover:bg-emerald-500/20">
-                    <Edit className="w-2.5 h-2.5 text-white/60 group-hover:text-emerald-400" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Hover overlay */}
-            <div className="absolute inset-0 transition-opacity duration-300 opacity-0 pointer-events-none bg-gradient-to-br from-emerald-400/5 via-blue-400/5 to-purple-400/5 group-hover:opacity-100 rounded-xl"></div>
+        {/* Status and Actions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+            <span className="text-sm text-green-400 font-medium">Active</span>
+            <span className="text-sm text-slate-500">•</span>
+            <span className="text-sm text-slate-400 truncate">{team.contactEmail?.substring(0, 15) || 'inceptos@iymatio'}...</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button className="p-2 hover:bg-slate-600/50 rounded-lg transition-colors duration-200">
+              <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
+            </button>
+            <button className="px-3 py-1 bg-cyan-600/20 text-cyan-400 text-sm font-medium rounded-lg hover:bg-cyan-600/30 transition-colors duration-200">
+              Pro
+            </button>
+            <button className="p-2 hover:bg-slate-600/50 rounded-lg transition-colors duration-200">
+              <Edit className="w-4 h-4 text-slate-400 hover:text-white" />
+            </button>
           </div>
         </div>
       </div>
     );
   };
+  };
 
-  // Square Sub-Admin Card Component
+  // Compact Sub-Admin Card Component
   const SubAdminCard = ({ subAdmin }) => {
     const getStatusColor = (status) => {
       return status === 'Active' ? 'from-green-500 to-emerald-600' : 'from-red-500 to-rose-600';
@@ -539,115 +507,116 @@ const CricketManagement = () => {
     };
 
     return (
-      <div className="cursor-pointer group">
-        <div className="relative overflow-hidden transition-all duration-300 border aspect-square bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
+      <div className="w-full mb-4">
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
           
-          {/* Background overlay */}
-          <div className="absolute -inset-0.5 bg-gradient-to-br from-cyan-500 via-purple-600 to-pink-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
-          
-          <div className="relative flex flex-col h-full p-4">
+          <div className="relative w-full p-5 overflow-hidden transition-all duration-300 border bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg">
             
-            {/* Header with admin info */}
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="relative flex items-center justify-center w-10 h-10 rounded-lg shadow-lg bg-gradient-to-br from-cyan-500 via-purple-600 to-pink-700">
-                  <UserCheck className="w-5 h-5 text-white drop-shadow-lg" />
-                  <div className="absolute flex items-center justify-center w-3 h-3 bg-green-400 rounded-full -top-1 -right-1">
-                    <Shield className="w-1.5 h-1.5 text-green-900" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center flex-1 space-x-4">
+                <div className="relative p-2.5 shadow-lg rounded-xl bg-gradient-to-br from-cyan-500 via-purple-600 to-pink-700">
+                  <UserCheck className="w-6 h-6 text-white drop-shadow-lg" />
+                  <div className="absolute flex items-center justify-center w-4 h-4 bg-green-400 rounded-full -top-1 -right-1">
+                    <Shield className="w-2 h-2 text-green-900" />
                   </div>
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-white truncate transition-colors duration-300 group-hover:text-cyan-400">
+                  <h3 className="mb-1 text-lg font-bold text-white truncate">
                     {subAdmin.name}
                   </h3>
-                  <div className="flex items-center space-x-1">
-                    <span className={`px-1.5 py-0.5 text-xs font-bold border rounded bg-gradient-to-r ${getStatusColor(subAdmin.status)}/20 border-opacity-40 truncate max-w-[60px]`} 
+                  <div className="flex items-center mb-1 space-x-3">
+                    <span className={`px-2.5 py-1 text-xs font-bold border rounded-full bg-gradient-to-r ${getStatusColor(subAdmin.status)}/20 border-opacity-40`} 
                           style={{borderColor: subAdmin.status === 'Active' ? '#10b981' : '#ef4444', color: subAdmin.status === 'Active' ? '#10b981' : '#ef4444'}}>
                       {subAdmin.status}
                     </span>
+                    <div className="flex items-center space-x-1 text-cyan-400">
+                      <Settings className="w-3.5 h-3.5" />
+                      <span className="text-xs font-medium truncate">{subAdmin.specialization}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-3 text-sm text-slate-300">
+                    <div className="flex items-center space-x-1">
+                      <Mail className="w-3 h-3" />
+                      <span className="text-xs truncate max-w-[120px]">{subAdmin.email}</span>
+                    </div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex flex-col items-end text-right">
-                <div className="text-lg font-bold text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-600 bg-clip-text">
+              <div className="text-right">
+                <div className="text-2xl font-bold text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-600 bg-clip-text">
                   {getPermissionCount(subAdmin.permissions)}
                 </div>
-                <div className="text-xs font-medium text-white/70">Perms</div>
+                <div className="text-xs font-medium text-white/70">Permissions</div>
               </div>
             </div>
 
-            {/* Specialization */}
-            <div className="flex items-center mb-3 space-x-1">
-              <Settings className="w-3 h-3 text-cyan-400" />
-              <span className="text-xs font-medium truncate text-cyan-400">{subAdmin.specialization}</span>
-            </div>
-
-            {/* Main content - permissions grid */}
-            <div className="flex flex-col justify-center flex-1">
-              <div className="grid grid-cols-2 gap-2">
-                <div className={`p-2 text-center border rounded ${subAdmin.permissions.manageTeams ? 'bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
-                  <Users className={`w-3 h-3 mx-auto mb-1 ${subAdmin.permissions.manageTeams ? 'text-green-400' : 'text-gray-400'}`} />
-                  <div className="text-xs font-medium text-green-400">Teams</div>
-                  <div className={`text-xs font-bold ${subAdmin.permissions.manageTeams ? 'text-white' : 'text-gray-500'}`}>
-                    {subAdmin.permissions.manageTeams ? '✓' : '✗'}
-                  </div>
+            {/* Compact Permissions Grid */}
+            <div className="grid grid-cols-2 gap-2 mb-4 md:grid-cols-4">
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.manageTeams ? 'bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <Users className={`w-3.5 h-3.5 ${subAdmin.permissions.manageTeams ? 'text-green-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.manageTeams ? 'text-green-400' : 'text-gray-400'}`}>Teams</span>
                 </div>
-                
-                <div className={`p-2 text-center border rounded ${subAdmin.permissions.managePlayers ? 'bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
-                  <User className={`w-3 h-3 mx-auto mb-1 ${subAdmin.permissions.managePlayers ? 'text-blue-400' : 'text-gray-400'}`} />
-                  <div className="text-xs font-medium text-blue-400">Players</div>
-                  <div className={`text-xs font-bold ${subAdmin.permissions.managePlayers ? 'text-white' : 'text-gray-500'}`}>
-                    {subAdmin.permissions.managePlayers ? '✓' : '✗'}
-                  </div>
-                </div>
-                
-                <div className={`p-2 text-center border rounded ${subAdmin.permissions.viewReports ? 'bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
-                  <BarChart3 className={`w-3 h-3 mx-auto mb-1 ${subAdmin.permissions.viewReports ? 'text-purple-400' : 'text-gray-400'}`} />
-                  <div className="text-xs font-medium text-purple-400">Reports</div>
-                  <div className={`text-xs font-bold ${subAdmin.permissions.viewReports ? 'text-white' : 'text-gray-500'}`}>
-                    {subAdmin.permissions.viewReports ? '✓' : '✗'}
-                  </div>
-                </div>
-                
-                <div className={`p-2 text-center border rounded ${subAdmin.permissions.manageMatches ? 'bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
-                  <Trophy className={`w-3 h-3 mx-auto mb-1 ${subAdmin.permissions.manageMatches ? 'text-orange-400' : 'text-gray-400'}`} />
-                  <div className="text-xs font-medium text-orange-400">Matches</div>
-                  <div className={`text-xs font-bold ${subAdmin.permissions.manageMatches ? 'text-white' : 'text-gray-500'}`}>
-                    {subAdmin.permissions.manageMatches ? '✓' : '✗'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="pt-2 mt-3 border-t border-white/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
-                  <span className="text-xs font-medium text-cyan-400">Sub-Admin</span>
-                </div>
-                
-                <div className="flex items-center space-x-1">
-                  <div className="px-1.5 py-0.5 border rounded bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border-cyan-500/30">
-                    <span className="text-xs font-medium text-white">Auth</span>
-                  </div>
-                  <div className="p-1 transition-colors rounded bg-white/10 group-hover:bg-cyan-500/20">
-                    <MoreVertical className="w-2.5 h-2.5 text-white/60 group-hover:text-cyan-400" />
-                  </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.manageTeams ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.manageTeams ? 'Granted' : 'Denied'}
                 </div>
               </div>
               
-              {/* Email */}
-              <div className="flex items-center mt-1 space-x-1">
-                <Mail className="w-2.5 h-2.5 text-slate-400" />
-                <span className="text-xs truncate text-slate-400">{subAdmin.email}</span>
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.managePlayers ? 'bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <User className={`w-3.5 h-3.5 ${subAdmin.permissions.managePlayers ? 'text-blue-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.managePlayers ? 'text-blue-400' : 'text-gray-400'}`}>Players</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.managePlayers ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.managePlayers ? 'Granted' : 'Denied'}
+                </div>
+              </div>
+              
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.viewReports ? 'bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <BarChart3 className={`w-3.5 h-3.5 ${subAdmin.permissions.viewReports ? 'text-purple-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.viewReports ? 'text-purple-400' : 'text-gray-400'}`}>Reports</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.viewReports ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.viewReports ? 'Granted' : 'Denied'}
+                </div>
+              </div>
+              
+              <div className={`p-2.5 border rounded-lg ${subAdmin.permissions.manageMatches ? 'bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/30' : 'bg-gradient-to-r from-gray-500/10 to-slate-600/10 border-gray-500/30'}`}>
+                <div className="flex items-center mb-1 space-x-1">
+                  <Trophy className={`w-3.5 h-3.5 ${subAdmin.permissions.manageMatches ? 'text-orange-400' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-bold ${subAdmin.permissions.manageMatches ? 'text-orange-400' : 'text-gray-400'}`}>Matches</span>
+                </div>
+                <div className={`text-xs font-bold ${subAdmin.permissions.manageMatches ? 'text-white' : 'text-gray-500'}`}>
+                  {subAdmin.permissions.manageMatches ? 'Granted' : 'Denied'}
+                </div>
               </div>
             </div>
 
-            {/* Hover overlay */}
-            <div className="absolute inset-0 transition-opacity duration-300 opacity-0 pointer-events-none bg-gradient-to-br from-cyan-400/5 via-purple-400/5 to-pink-400/5 group-hover:opacity-100 rounded-xl"></div>
+            {/* Compact Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-white/20">
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-1 text-cyan-400">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                  <span className="text-xs font-medium">Sub-Admin</span>
+                </div>
+                <div className="text-xs text-slate-400">
+                  Created: {subAdmin.joinedDate}
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <div className="px-2.5 py-1 border rounded-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border-cyan-500/30">
+                  <span className="text-xs font-medium text-white">Auth</span>
+                </div>
+                <div className="p-1.5 rounded-lg bg-white/10 hover:bg-cyan-500/20 transition-colors cursor-pointer">
+                  <MoreVertical className="w-3 h-3 text-white/60 hover:text-cyan-400" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -773,142 +742,155 @@ const CricketManagement = () => {
     );
   };
 
+  // Main component return
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Enhanced Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <div className="absolute top-0 rounded-full left-1/4 w-96 h-96 bg-emerald-500/4 blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 rounded-full right-1/4 w-80 h-80 bg-blue-500/4 blur-3xl animate-pulse" style={{animationDelay: '1s'}} />
-        <div className="absolute w-64 h-64 transform -translate-x-1/2 -translate-y-1/2 rounded-full top-1/2 left-1/2 bg-purple-500/3 blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
-        
-        <div className="absolute inset-0 opacity-[0.015]">
+    <div className="w-screen min-h-screen text-white bg-slate-900">
+      {/* Full Width Dark Background */}
+      <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.02]">
           <div 
             className="w-full h-full"
             style={{
               backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-              backgroundSize: '50px 50px'
+              backgroundSize: '40px 40px'
             }}
           />
         </div>
       </div>
 
-      <div className="relative z-10 text-white">
-        {/* Full Width Header */}
-        <div className="w-full mb-6">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 blur-lg"></div>
-            
-            <div className="relative w-full px-4 py-4 border-b bg-gradient-to-r from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-white/20 lg:px-6 lg:py-5">
-              <div className="flex items-center justify-between max-w-full">
-                <div className="flex items-center flex-1 min-w-0 space-x-3">
-                  <button
-                    onClick={() => {
-                      if (activeView === 'team-details') {
-                        setActiveView('teams');
-                        setSelectedTeam(null);
-                      } else {
-                        navigate('/superadmin/sports');
-                      }
-                    }}
-                    className="relative flex-shrink-0 p-2.5 transition-all duration-300 border group bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30 rounded-lg hover:from-emerald-500/30 hover:to-blue-500/30 hover:scale-105"
-                  >
-                    <ArrowLeft className="w-4 h-4 text-white transition-colors duration-300 group-hover:text-emerald-400" />
-                  </button>
-                  
-                  <div className="flex items-center flex-1 min-w-0 space-x-3">
-                    <div className="relative flex-shrink-0">
-                      <div className="p-2.5 shadow-lg bg-gradient-to-br from-emerald-500 via-blue-600 to-purple-600 rounded-lg">
-                        <Trophy className="w-6 h-6 text-white" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h1 className="mb-0.5 text-xl font-bold text-transparent bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-500 bg-clip-text lg:text-2xl xl:text-3xl truncate">
-                        {activeView === 'teams' ? 'Cricket Management Hub' : 
-                         activeView === 'sub-admins' ? 'Cricket Sub-Administrators' :
-                         `${selectedTeam?.name} Squad`}
-                      </h1>
-                      <p className="text-sm font-medium truncate text-white/80 lg:text-base">
-                        {activeView === 'teams' ? 'Professional Team & Sub-Admin Management System' : 
-                         activeView === 'sub-admins' ? 'Manage Cricket Sub-Administrator Access & Permissions' :
-                         'Elite Player Roster & Performance Analytics'}
-                      </p>
-                      <div className="flex items-center mt-1 space-x-3">
-                        <div className="flex items-center space-x-1 text-emerald-400">
-                          <div className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
-                          <span className="text-xs font-medium lg:text-sm">Live System</span>
-                        </div>
-                        <div className="flex items-center space-x-1 text-blue-400">
-                          <Shield className="w-3 h-3" />
-                          <span className="text-xs font-medium">Secure Platform</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+      <div className="relative z-10 w-full">
+        {/* Compact Header */}
+        <div className="w-full px-6 py-4 border-b bg-slate-800/50 border-slate-700/50">
+          <div className="flex items-center justify-between max-w-none">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  if (activeView === 'team-details') {
+                    setActiveView('teams');
+                    setSelectedTeam(null);
+                  } else {
+                    navigate('/superadmin/sports');
+                  }
+                }}
+                className="p-2 transition-all duration-300 border rounded-lg bg-slate-700/50 border-slate-600 hover:bg-slate-600/50 hover:border-slate-500"
+              >
+                <ArrowLeft className="w-5 h-5 text-white" />
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-600">
+                  <Trophy className="w-6 h-6 text-white" />
                 </div>
                 
-                <div className="flex items-center space-x-2 lg:space-x-3">
-                  {loading && (
-                    <div className="flex items-center space-x-1.5 text-blue-400">
-                      <Loader className="w-3.5 h-3.5 animate-spin" />
-                      <span className="text-xs">Loading...</span>
-                    </div>
-                  )}
-                  
-                  {/* Compact Navigation Tabs */}
-                  {activeView !== 'team-details' && (
-                    <div className="flex space-x-1.5">
-                      <button
-                        onClick={() => setActiveView('teams')}
-                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
-                          activeView === 'teams' 
-                            ? 'bg-gradient-to-r from-emerald-500 to-blue-600 text-white' 
-                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                        }`}
-                      >
-                        <Users className="inline w-3.5 h-3.5 mr-1.5" />
-                        Teams ({teams.length})
-                      </button>
-                      <button
-                        onClick={() => setActiveView('sub-admins')}
-                        className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
-                          activeView === 'sub-admins' 
-                            ? 'bg-gradient-to-r from-purple-500 to-pink-600 text-white' 
-                            : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                        }`}
-                      >
-                        <UserCheck className="inline w-3.5 h-3.5 mr-1.5" />
-                        Sub-Admins ({subAdmins.length})
-                      </button>
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={() => {
-                      if (activeView === 'teams') setShowAddTeamModal(true);
-                      else if (activeView === 'sub-admins') setShowAddSubAdminModal(true);
-                      else setShowAddPlayerModal(true);
-                    }}
-                    disabled={activeView === 'team-details' && selectedTeam && selectedTeam.players?.length >= 15}
-                    className={`flex items-center px-3 py-2 space-x-1.5 transition-all duration-300 transform shadow-lg rounded-lg hover:scale-105 text-sm font-semibold ${
-                      activeView === 'team-details' && selectedTeam && selectedTeam.players?.length >= 15 
-                        ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60' 
-                        : activeView === 'sub-admins'
-                        ? 'bg-gradient-to-r from-purple-500 via-pink-600 to-red-600 hover:from-purple-600 hover:via-pink-700 hover:to-red-700'
-                        : 'bg-gradient-to-r from-emerald-500 via-blue-600 to-purple-600 hover:from-emerald-600 hover:via-blue-700 hover:to-purple-700'
-                    }`}
-                  >
-                    <Plus className="w-3.5 h-3.5 text-white" />
-                    <span className="text-white">
-                      {activeView === 'teams' ? 'Create Team' : 
-                       activeView === 'sub-admins' ? 'Add Sub-Admin' :
-                       selectedTeam && selectedTeam.players?.length >= 15 ? `Full (${selectedTeam.players?.length || 0}/15)` : `Add Player (${selectedTeam?.players?.length || 0}/15)`}
-                    </span>
-                  </button>
+                <div>
+                  <h1 className="text-xl font-bold text-white lg:text-2xl">
+                    Cricket Management Hub
+                  </h1>
+                  <p className="text-sm text-slate-400">
+                    Professional Team & Sub-Admin Management System
+                  </p>
                 </div>
               </div>
             </div>
+
+            {/* Navigation Pills */}
+            <div className="flex items-center p-1 space-x-2 rounded-lg bg-slate-700/30">
+              <button
+                onClick={() => setActiveView('teams')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
+                  activeView === 'teams'
+                    ? 'bg-emerald-600 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-600/50'
+                }`}
+              >
+                <Users className="inline-block w-4 h-4 mr-2" />
+                Teams ({filteredTeams.length})
+              </button>
+              <button
+                onClick={() => setActiveView('subadmins')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
+                  activeView === 'subadmins'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-600/50'
+                }`}
+              >
+                <UserCheck className="inline-block w-4 h-4 mr-2" />
+                Sub-Admins ({filteredSubAdmins.length})
+              </button>
+            </div>
+
+            {/* Action Button */}
+            <button
+              onClick={() => {
+                if (activeView === 'teams') setShowAddTeamModal(true);
+                else if (activeView === 'subadmins') setShowAddSubAdminModal(true);
+              }}
+              className="flex items-center px-4 py-2 space-x-2 text-sm font-semibold text-white transition-all duration-300 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 hover:scale-105"
+            >
+              <Plus className="w-4 h-4" />
+              <span>
+                {activeView === 'teams' ? 'Create Team' : 'Add Sub-Admin'}
+              </span>
+            </button>
           </div>
+        </div>
+        {/* Search and Content Section */}
+        <div className="px-6 py-4">
+          {/* Search Bar */}
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <Search className="absolute w-4 h-4 transform -translate-y-1/2 left-3 top-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search teams by name or abbreviation..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full py-2 pl-10 pr-4 text-white border rounded-lg bg-slate-700/50 border-slate-600 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+          </div>
+            {/* Teams List */}
+        {activeView === 'teams' && !loading && (
+          <div className="px-6">
+            {filteredTeams.length === 0 ? (
+              <div className="py-16 text-center">
+                <Trophy className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                <h3 className="mb-1 text-lg font-semibold text-white/60">No teams found</h3>
+                <p className="text-sm text-white/40">
+                  {searchTerm ? 'Try adjusting your search terms' : 'Create your first cricket team to get started'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredTeams.map(team => (
+                  <TeamCard key={team._id || team.id} team={team} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sub-Admins List */}
+        {activeView === 'subadmins' && !loading && (
+          <div className="px-6">
+            {filteredSubAdmins.length === 0 ? (
+              <div className="py-16 text-center">
+                <UserCheck className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                <h3 className="mb-1 text-lg font-semibold text-white/60">No sub-admins found</h3>
+                <p className="text-sm text-white/40">
+                  {searchTerm ? 'Try adjusting your search terms' : 'Add your first cricket sub-administrator to get started'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredSubAdmins.map(subAdmin => (
+                  <SubAdminCard key={subAdmin._id || subAdmin.id} subAdmin={subAdmin} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
           {/* Compact Search Bar */}
           {(activeView === 'teams' || activeView === 'sub-admins') && (
@@ -972,7 +954,7 @@ const CricketManagement = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="space-y-4">
                 {filteredTeams.map(team => (
                   <TeamCard key={team._id || team.id} team={team} />
                 ))}
@@ -993,7 +975,7 @@ const CricketManagement = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="space-y-4">
                 {filteredSubAdmins.map(subAdmin => (
                     <SubAdminCard key={subAdmin._id || subAdmin.id} subAdmin={subAdmin} />
                 ))}

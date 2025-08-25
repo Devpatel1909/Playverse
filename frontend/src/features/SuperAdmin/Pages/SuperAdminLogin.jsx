@@ -28,7 +28,7 @@ const UltraModernsuperAdminAuth = () => {
   const containerRef = useRef(null);
 
   // Typing animation effect
-  const titles = ["Cricket Command Center", "Live Match Control", "superAdmin Dashboard", "Data Analytics Hub"];
+  const titles = ["Sports Command Center", "Live Match Control", "superAdmin Dashboard", "Data Analytics Hub"];
 
   useEffect(() => {
     let titleIndex = 0;
@@ -679,7 +679,7 @@ const UltraModernsuperAdminAuth = () => {
             <div className="inline-flex items-center space-x-3 md:space-x-4 px-4 md:px-6 py-2 md:py-3 bg-white/[0.02] backdrop-blur-sm rounded-xl md:rounded-2xl border border-white/10">
               <div className="flex items-center space-x-2">
                 <Trophy className="w-4 h-4 md:w-5 md:h-5 text-emerald-400 animate-pulse" />
-                <span className="text-sm font-semibold md:text-base text-white/80">Cricket Command Center</span>
+                <span className="text-sm font-semibold md:text-base text-white/80">Sports Command Center</span>
               </div>
               <div className="w-px h-4 md:h-6 bg-white/20"></div>
               <div className="flex items-center space-x-2 text-xs md:text-sm text-white/60">
