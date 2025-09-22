@@ -57,9 +57,61 @@ const CricketManagement = () => {
   const [playerPhotos, setPlayerPhotos] = useState({});
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedPlayerForPhoto, setSelectedPlayerForPhoto] = useState(null);
-  const [teams, setTeams] = useState([]);
+  const [teams, setTeams] = useState([
+    {
+      id: 1,
+      _id: '1',
+      name: 'Mumbai Indians',
+      shortName: 'MI',
+      captain: 'Rohit Sharma',
+      coach: 'Mahela Jayawardene',
+      homeGround: 'Wankhede Stadium',
+      contactEmail: 'info@mumbaiindians.com',
+      contactPhone: '+91-9876543210',
+      established: '2008',
+      players: [
+        { id: 1, name: 'Rohit Sharma', role: 'Captain/Batsman', age: 36, jerseyNumber: 45 },
+        { id: 2, name: 'Jasprit Bumrah', role: 'Bowler', age: 30, jerseyNumber: 93 },
+        { id: 3, name: 'Hardik Pandya', role: 'All-rounder', age: 30, jerseyNumber: 33 }
+      ]
+    },
+    {
+      id: 2,
+      _id: '2',
+      name: 'Chennai Super Kings',
+      shortName: 'CSK',
+      captain: 'MS Dhoni',
+      coach: 'Stephen Fleming',
+      homeGround: 'M. A. Chidambaram Stadium',
+      contactEmail: 'info@chennaisk.com',
+      contactPhone: '+91-9876543211',
+      established: '2008',
+      players: [
+        { id: 4, name: 'MS Dhoni', role: 'Captain/Wicket Keeper', age: 42, jerseyNumber: 7 },
+        { id: 5, name: 'Ravindra Jadeja', role: 'All-rounder', age: 35, jerseyNumber: 8 },
+        { id: 6, name: 'Ruturaj Gaikwad', role: 'Batsman', age: 27, jerseyNumber: 31 }
+      ]
+    },
+    {
+      id: 3,
+      _id: '3',
+      name: 'Royal Challengers Bangalore',
+      shortName: 'RCB',
+      captain: 'Virat Kohli',
+      coach: 'Andy Flower',
+      homeGround: 'M. Chinnaswamy Stadium',
+      contactEmail: 'info@rcbteam.com',
+      contactPhone: '+91-9876543212',
+      established: '2008',
+      players: [
+        { id: 7, name: 'Virat Kohli', role: 'Captain/Batsman', age: 35, jerseyNumber: 18 },
+        { id: 8, name: 'Mohammed Siraj', role: 'Bowler', age: 30, jerseyNumber: 13 },
+        { id: 9, name: 'Glenn Maxwell', role: 'All-rounder', age: 35, jerseyNumber: 32 }
+      ]
+    }
+  ]);
   const [subAdmins, setSubAdmins] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [subAdminError, setSubAdminError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -424,7 +476,7 @@ const CricketManagement = () => {
         setSelectedTeam(team);
         setActiveView('team-details');
       }}>
-        <div className="relative overflow-hidden transition-all duration-300 border aspect-square bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
+        <div className="relative overflow-hidden transition-all duration-300 border h-480 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
           
           {/* Background overlay */}
           <div className="absolute -inset-0.5 bg-gradient-to-br from-emerald-500 via-blue-600 to-purple-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
@@ -774,7 +826,7 @@ const CricketManagement = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative w-screen h-screen overflow-hidden text-white" style={{ fontFamily: "'Poppins', sans-serif" }}>
       {/* Enhanced Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
         <div className="absolute top-0 rounded-full left-1/4 w-96 h-96 bg-emerald-500/4 blur-3xl animate-pulse" />
@@ -792,13 +844,14 @@ const CricketManagement = () => {
         </div>
       </div>
 
-      <div className="relative z-10 text-white">
-        {/* Full Width Header */}
-        <div className="w-full mb-6">
+      <div className="relative z-10 p-6 text-white">
+        {/* Enhanced Header */}
+        <div className="mb-12">
           <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 blur-lg"></div>
+            {/* Header background glow */}
+            <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-blue-500/20 to-emerald-500/20 rounded-3xl blur-2xl animate-pulse"></div>
             
-            <div className="relative w-full px-4 py-4 border-b bg-gradient-to-r from-slate-900/90 via-slate-800/90 to-slate-900/90 backdrop-blur-xl border-white/20 lg:px-6 lg:py-5">
+            <div className="relative p-8 border bg-gradient-to-r from-slate-900/80 via-slate-800/80 to-slate-900/80 backdrop-blur-2xl rounded-3xl border-white/20">
               <div className="flex items-center justify-between max-w-full">
                 <div className="flex items-center flex-1 min-w-0 space-x-3">
                   <button
@@ -810,9 +863,9 @@ const CricketManagement = () => {
                         navigate('/superadmin/sports');
                       }
                     }}
-                    className="relative flex-shrink-0 p-2.5 transition-all duration-300 border group bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30 rounded-lg hover:from-emerald-500/30 hover:to-blue-500/30 hover:scale-105"
+                    className="relative p-3 transition-all duration-300 border group bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30 rounded-2xl hover:from-emerald-500/30 hover:to-blue-500/30"
                   >
-                    <ArrowLeft className="w-4 h-4 text-white transition-colors duration-300 group-hover:text-emerald-400" />
+                    <ArrowLeft className="w-6 h-6 text-white transition-colors duration-300 group-hover:text-emerald-400" />
                   </button>
                   
                   <div className="flex items-center flex-1 min-w-0 space-x-3">
