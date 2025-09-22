@@ -5,7 +5,13 @@ import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.jsx";
 import SuperAdminSportsOverview from "./features/SuperAdmin/Pages/SuperAdminSportsOverview.jsx";
 import CricketManagement from "./features/cricket/components/CricketManagement.jsx";
 import CricketScorerOverview from "./features/cricket/components/CricketScorerOverview.jsx";
-import FootballManagement from "./features/football/components/FootballManagement.jsx"; // <-- Add this import
+import FootballManagement from "./features/football/components/FootballManagement.jsx";
+import BasketballManagement from "./features/basketball/components/BasketballManagement.jsx";
+import BadmintonManagement from "./features/badminton/components/BadmintonManagement.jsx";
+import VolleyballManagement from "./features/volleyball/components/VolleyballManagement.jsx";
+import TennisManagement from "./features/tennis/components/TennisManagement.jsx";
+import TableTennisManagement from "./features/tabletennis/components/TableTennisManagement.jsx";
+import HockeyManagement from "./features/hockey/components/HockeyManagement.jsx";
 import APIConnectionTest from "./components/APIConnectionTest.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
@@ -40,6 +46,11 @@ function App() {
 
       {/* Super Admin - now with particle text effect */}
       <Route path="/superadmin/login" element={<SuperAdminEntry />} />
+      <Route path="/superadmin" element={
+        <ProtectedRoute>
+          <SuperAdminSportsOverview />
+        </ProtectedRoute>
+      } />
       <Route path="/superadmin/sports" element={
         <ProtectedRoute>
           <SuperAdminSportsOverview />
@@ -70,17 +81,41 @@ function App() {
         </ProtectedRoute>
       } />
 
-      {/* Additional sport management routes
       <Route path="/basketball-management" element={
-        <AdminProtectedRoute requiredSport="basketball">
-          <AdminSportsOverview />
-        </AdminProtectedRoute>
+        <ProtectedRoute>
+          <BasketballManagement />
+        </ProtectedRoute>
       } />
+
+      <Route path="/badminton-management" element={
+        <ProtectedRoute>
+          <BadmintonManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/volleyball-management" element={
+        <ProtectedRoute>
+          <VolleyballManagement />
+        </ProtectedRoute>
+      } />
+
       <Route path="/tennis-management" element={
-        <AdminProtectedRoute requiredSport="tennis">
-          <AdminSportsOverview />
-        </AdminProtectedRoute>
-      } /> */}
+        <ProtectedRoute>
+          <TennisManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/tabletennis-management" element={
+        <ProtectedRoute>
+          <TableTennisManagement />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/hockey-management" element={
+        <ProtectedRoute>
+          <HockeyManagement />
+        </ProtectedRoute>
+      } />
 
       {/* 404 */}
       <Route path="*" element={<div className="flex items-center justify-center min-h-screen text-white bg-slate-900">404 - Not Found</div>} />

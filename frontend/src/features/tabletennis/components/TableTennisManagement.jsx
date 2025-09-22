@@ -43,7 +43,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const HockeyManagement = () => {
+const TableTennisManagement = () => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState('teams');
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -58,52 +58,52 @@ const HockeyManagement = () => {
     {
       id: 1,
       _id: '1',
-      name: 'Ice Breakers',
-      shortName: 'IB',
-      captain: 'Arjun Singh',
-      coach: 'Vikram Patel',
-      homeGround: 'Ice Hockey Arena A',
-      contactEmail: 'info@icebreakers.com',
+      name: 'Paddle Masters',
+      shortName: 'PM',
+      captain: 'Rohit Sharma',
+      coach: 'Vikram Singh',
+      homeGround: 'Table Tennis Arena A',
+      contactEmail: 'info@paddlemasters.com',
       contactPhone: '+91-9876543210',
-      established: '2020',
+      established: '2021',
       players: [
-        { id: 1, name: 'Arjun Singh', role: 'Forward', age: 25, jerseyNumber: 9, matches: 18, goals: 12, assists: 8 },
-        { id: 2, name: 'Priya Sharma', role: 'Defender', age: 23, jerseyNumber: 4, matches: 16, goals: 3, assists: 15 },
-        { id: 3, name: 'Rohit Kumar', role: 'Goalkeeper', age: 27, jerseyNumber: 1, matches: 20, goals: 0, saves: 145 }
+        { id: 1, name: 'Rohit Sharma', role: 'Singles Player', age: 26, jerseyNumber: 1, matches: 15, points: 245, ranking: 'National A' },
+        { id: 2, name: 'Kavya Patel', role: 'Doubles Player', age: 24, jerseyNumber: 2, matches: 12, points: 198, ranking: 'State A' },
+        { id: 3, name: 'Arjun Mehta', role: 'Mixed Doubles', age: 28, jerseyNumber: 3, matches: 18, points: 267, ranking: 'National B' }
       ]
     },
     {
       id: 2,
       _id: '2',
-      name: 'Stick Warriors',
-      shortName: 'SW',
-      captain: 'Vikram Patel',
-      coach: 'Sneha Gupta',
-      homeGround: 'Championship Ice Rink',
-      contactEmail: 'info@stickwarriors.com',
+      name: 'Spin Doctors',
+      shortName: 'SD',
+      captain: 'Amit Singh',
+      coach: 'Priya Sharma',
+      homeGround: 'Sports Complex B',
+      contactEmail: 'info@spindoctors.com',
       contactPhone: '+91-9876543211',
-      established: '2019',
+      established: '2020',
       players: [
-        { id: 4, name: 'Vikram Patel', role: 'Forward', age: 27, jerseyNumber: 10, matches: 22, goals: 15, assists: 12 },
-        { id: 5, name: 'Sneha Gupta', role: 'Midfielder', age: 24, jerseyNumber: 8, matches: 19, goals: 7, assists: 18 },
-        { id: 6, name: 'Amit Sharma', role: 'Defender', age: 26, jerseyNumber: 5, matches: 17, goals: 2, assists: 11 }
+        { id: 4, name: 'Amit Singh', role: 'Singles Player', age: 28, jerseyNumber: 1, matches: 20, points: 298, ranking: 'National B' },
+        { id: 5, name: 'Neha Gupta', role: 'Mixed Doubles Player', age: 25, jerseyNumber: 2, matches: 17, points: 234, ranking: 'State B' },
+        { id: 6, name: 'Kiran Kumar', role: 'Doubles Player', age: 27, jerseyNumber: 3, matches: 14, points: 189, ranking: 'State A' }
       ]
     },
     {
       id: 3,
       _id: '3',
-      name: 'Puck Masters',
-      shortName: 'PM',
-      captain: 'Kavya Singh',
-      coach: 'Rajesh Patel',
-      homeGround: 'Elite Ice Stadium',
-      contactEmail: 'info@puckmasters.com',
+      name: 'Racket Warriors',
+      shortName: 'RW',
+      captain: 'Sneha Patel',
+      coach: 'Rajesh Kumar',
+      homeGround: 'Championship Hall',
+      contactEmail: 'info@racketwarriors.com',
       contactPhone: '+91-9876543212',
-      established: '2021',
+      established: '2019',
       players: [
-        { id: 7, name: 'Kavya Singh', role: 'Forward', age: 24, jerseyNumber: 7, matches: 15, goals: 10, assists: 9 },
-        { id: 8, name: 'Kiran Jain', role: 'Defender', age: 28, jerseyNumber: 3, matches: 18, goals: 4, assists: 14 },
-        { id: 9, name: 'Neha Gupta', role: 'Goalkeeper', age: 25, jerseyNumber: 30, matches: 16, goals: 0, saves: 128 }
+        { id: 7, name: 'Sneha Patel', role: 'Singles Player', age: 23, jerseyNumber: 1, matches: 16, points: 256, ranking: 'National A' },
+        { id: 8, name: 'Vikash Singh', role: 'Doubles Player', age: 29, jerseyNumber: 2, matches: 19, points: 278, ranking: 'National B' },
+        { id: 9, name: 'Priya Jain', role: 'Mixed Doubles', age: 26, jerseyNumber: 3, matches: 13, points: 201, ranking: 'State A' }
       ]
     }
   ]);
@@ -112,8 +112,8 @@ const HockeyManagement = () => {
   const [error, setError] = useState(null);
   const [subAdminError, setSubAdminError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
-  const currentUser = 'HockeyAdmin';
-  const currentDateTime = '2025-01-22 15:45:00';
+  const currentUser = 'TableTennisAdmin';
+  const currentDateTime = '2025-01-22 14:30:00';
   const [newSubAdmin, setNewSubAdmin] = useState({
     name: '',
     email: '',
@@ -165,8 +165,7 @@ const HockeyManagement = () => {
 
   // Update player statistics
   const updatePlayerStats = (playerId) => {
-    const newGoals = Math.floor(Math.random() * 3) + 1;
-    const newAssists = Math.floor(Math.random() * 2) + 1;
+    const newPoints = Math.floor(Math.random() * 30) + 10;
     const newMatches = 1;
 
     const updatedTeams = teams.map(team => ({
@@ -176,9 +175,8 @@ const HockeyManagement = () => {
           ? {
               ...player,
               matches: (player.matches || 0) + newMatches,
-              goals: player.role === 'Goalkeeper' ? (player.goals || 0) : (player.goals || 0) + newGoals,
-              assists: (player.assists || 0) + newAssists,
-              saves: player.role === 'Goalkeeper' ? (player.saves || 0) + Math.floor(Math.random() * 8) + 3 : player.saves
+              points: (player.points || 0) + newPoints,
+              average: ((player.points || 0) + newPoints) / ((player.matches || 0) + newMatches)
             }
           : player
       )
@@ -195,11 +193,7 @@ const HockeyManagement = () => {
       .flatMap(team => team.players)
       .find(p => p.id === playerId);
     
-    if (updatedPlayer.role === 'Goalkeeper') {
-      alert(`✅ Goalkeeper Stats Updated!\n\n${updatedPlayer.name} made great saves in their latest match!\n\nNew Stats:\n• Matches: ${updatedPlayer.matches}\n• Saves: ${updatedPlayer.saves}\n• Assists: ${updatedPlayer.assists}`);
-    } else {
-      alert(`✅ Player Stats Updated!\n\n${updatedPlayer.name} scored ${newGoals} goals and ${newAssists} assists in their latest match!\n\nNew Stats:\n• Matches: ${updatedPlayer.matches}\n• Goals: ${updatedPlayer.goals}\n• Assists: ${updatedPlayer.assists}`);
-    }
+    alert(`✅ Player Stats Updated!\n\n${updatedPlayer.name} earned ${newPoints} points in their latest match!\n\nNew Stats:\n• Matches: ${updatedPlayer.matches}\n• Total Points: ${updatedPlayer.points}\n• Average: ${updatedPlayer.average?.toFixed(1) || 'N/A'}`);
   };
 
   // Square Team Card Component
@@ -212,14 +206,14 @@ const HockeyManagement = () => {
         <div className="relative overflow-hidden transition-all duration-300 border h-480 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
           
           {/* Background overlay */}
-          <div className="absolute -inset-0.5 bg-gradient-to-br from-teal-500 via-cyan-600 to-blue-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
+          <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
           
           <div className="relative flex flex-col h-full p-4">
             
             {/* Header with team logo and basic info */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-3">
-                <div className="relative flex items-center justify-center w-10 h-10 transition-transform duration-300 rounded-lg shadow-lg bg-gradient-to-br from-teal-500 via-cyan-600 to-blue-700 group-hover:scale-110">
+                <div className="relative flex items-center justify-center w-10 h-10 transition-transform duration-300 rounded-lg shadow-lg bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 group-hover:scale-110">
                   <Trophy className="w-5 h-5 text-white drop-shadow-lg" />
                   <div className="absolute flex items-center justify-center w-3 h-3 bg-yellow-400 rounded-full -top-1 -right-1">
                     <Crown className="w-1.5 h-1.5 text-yellow-900" />
@@ -227,11 +221,11 @@ const HockeyManagement = () => {
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-white truncate transition-colors duration-300 group-hover:text-teal-400">
+                  <h3 className="text-sm font-bold text-white truncate transition-colors duration-300 group-hover:text-blue-400">
                     {team.name}
                   </h3>
                   <div className="flex items-center space-x-1">
-                    <span className="px-1.5 py-0.5 text-xs font-bold border rounded text-teal-400 bg-teal-500/20 border-teal-500/40 truncate max-w-[60px]">
+                    <span className="px-1.5 py-0.5 text-xs font-bold border rounded text-blue-400 bg-blue-500/20 border-blue-500/40 truncate max-w-[60px]">
                       {team.shortName}
                     </span>
                   </div>
@@ -239,7 +233,7 @@ const HockeyManagement = () => {
               </div>
               
               <div className="flex flex-col items-end text-right">
-                <div className="text-lg font-bold text-transparent bg-gradient-to-r from-teal-400 via-cyan-500 to-blue-600 bg-clip-text">
+                <div className="text-lg font-bold text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text">
                   {team.players?.length || 0}
                 </div>
                 <div className="text-xs font-medium text-white/70">Players</div>
@@ -255,21 +249,21 @@ const HockeyManagement = () => {
             {/* Main content - stats grid */}
             <div className="flex flex-col justify-center flex-1">
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-teal-500/10 to-cyan-600/10 border-teal-500/30">
-                  <Shield className="w-3 h-3 mx-auto mb-1 text-teal-400" />
-                  <div className="text-xs font-medium text-teal-400">Captain</div>
+                <div className="p-2 text-center border rounded bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/30">
+                  <Shield className="w-3 h-3 mx-auto mb-1 text-blue-400" />
+                  <div className="text-xs font-medium text-blue-400">Captain</div>
                   <div className="text-xs font-bold text-white truncate">{team.captain || 'TBA'}</div>
                 </div>
                 
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border-cyan-500/30">
-                  <Award className="w-3 h-3 mx-auto mb-1 text-cyan-400" />
-                  <div className="text-xs font-medium text-cyan-400">Coach</div>
+                <div className="p-2 text-center border rounded bg-gradient-to-r from-indigo-500/10 to-purple-600/10 border-indigo-500/30">
+                  <Award className="w-3 h-3 mx-auto mb-1 text-indigo-400" />
+                  <div className="text-xs font-medium text-indigo-400">Coach</div>
                   <div className="text-xs font-bold text-white truncate">{team.coach || 'TBA'}</div>
                 </div>
                 
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/30">
-                  <Users className="w-3 h-3 mx-auto mb-1 text-blue-400" />
-                  <div className="text-xs font-medium text-blue-400">Squad</div>
+                <div className="p-2 text-center border rounded bg-gradient-to-r from-purple-500/10 to-pink-600/10 border-purple-500/30">
+                  <Users className="w-3 h-3 mx-auto mb-1 text-purple-400" />
+                  <div className="text-xs font-medium text-purple-400">Squad</div>
                   <div className={`text-xs font-bold ${
                     (team.players?.length || 0) >= 15 ? 'text-red-400' : 
                     (team.players?.length || 0) >= 12 ? 'text-yellow-400' : 'text-white'
@@ -278,9 +272,9 @@ const HockeyManagement = () => {
                   </div>
                 </div>
                 
-                <div className="p-2 text-center border rounded bg-gradient-to-r from-indigo-500/10 to-purple-600/10 border-indigo-500/30">
-                  <Phone className="w-3 h-3 mx-auto mb-1 text-indigo-400" />
-                  <div className="text-xs font-medium text-indigo-400">Contact</div>
+                <div className="p-2 text-center border rounded bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border-cyan-500/30">
+                  <Phone className="w-3 h-3 mx-auto mb-1 text-cyan-400" />
+                  <div className="text-xs font-medium text-cyan-400">Contact</div>
                   <div className="text-xs font-bold text-white truncate">{team.contactPhone || 'N/A'}</div>
                 </div>
               </div>
@@ -290,23 +284,23 @@ const HockeyManagement = () => {
             <div className="pt-2 mt-3 border-t border-white/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse"></div>
-                  <span className="text-xs font-medium text-teal-400">Active</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
+                  <span className="text-xs font-medium text-blue-400">Active</span>
                 </div>
                 
                 <div className="flex items-center space-x-1">
-                  <div className="px-1.5 py-0.5 border rounded bg-gradient-to-r from-teal-500/20 to-cyan-500/20 border-teal-500/30">
+                  <div className="px-1.5 py-0.5 border rounded bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border-blue-500/30">
                     <span className="text-xs font-medium text-white">Pro</span>
                   </div>
-                  <div className="p-1 transition-colors rounded bg-white/10 group-hover:bg-teal-500/20">
-                    <Edit className="w-2.5 h-2.5 text-white/60 group-hover:text-teal-400" />
+                  <div className="p-1 transition-colors rounded bg-white/10 group-hover:bg-blue-500/20">
+                    <Edit className="w-2.5 h-2.5 text-white/60 group-hover:text-blue-400" />
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Hover overlay */}
-            <div className="absolute inset-0 transition-opacity duration-300 opacity-0 pointer-events-none bg-gradient-to-br from-teal-400/5 via-cyan-400/5 to-blue-400/5 group-hover:opacity-100 rounded-xl"></div>
+            <div className="absolute inset-0 transition-opacity duration-300 opacity-0 pointer-events-none bg-gradient-to-br from-blue-400/5 via-indigo-400/5 to-purple-400/5 group-hover:opacity-100 rounded-xl"></div>
           </div>
         </div>
       </div>
@@ -321,39 +315,39 @@ const HockeyManagement = () => {
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3">
               <div className="relative">
-                <div className="flex items-center justify-center w-10 h-10 rounded-lg shadow-lg bg-gradient-to-br from-teal-500 to-cyan-600">
+                <div className="flex items-center justify-center w-10 h-10 rounded-lg shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
                   <User className="w-5 h-5 text-white" />
                 </div>
-                <div className="absolute flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-teal-600 rounded-full -bottom-1 -right-1">
+                <div className="absolute flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-blue-600 rounded-full -bottom-1 -right-1">
                   {player.jerseyNumber}
                 </div>
               </div>
               
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-white truncate">{player.name}</h4>
-                <p className="text-xs text-teal-400 truncate">{player.role}</p>
+                <p className="text-xs text-blue-400 truncate">{player.role}</p>
                 <p className="text-xs text-white/60 truncate">{teamName}</p>
               </div>
             </div>
             
             <div className="text-right">
-              <div className="text-sm font-bold text-teal-400">{player.goals || 0}</div>
-              <div className="text-xs text-white/60">Goals</div>
+              <div className="text-sm font-bold text-blue-400">{player.points || 0}</div>
+              <div className="text-xs text-white/60">Points</div>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2 mb-3">
-            <div className="p-1.5 text-center border rounded bg-gradient-to-r from-teal-500/10 to-cyan-600/10 border-teal-500/20">
-              <div className="text-xs font-bold text-white">{player.matches || 0}</div>
-              <div className="text-xs text-teal-400">Matches</div>
-            </div>
-            <div className="p-1.5 text-center border rounded bg-gradient-to-r from-cyan-500/10 to-blue-600/10 border-cyan-500/20">
-              <div className="text-xs font-bold text-white">{player.assists || player.saves || 0}</div>
-              <div className="text-xs text-cyan-400">{player.role === 'Goalkeeper' ? 'Saves' : 'Assists'}</div>
-            </div>
             <div className="p-1.5 text-center border rounded bg-gradient-to-r from-blue-500/10 to-indigo-600/10 border-blue-500/20">
+              <div className="text-xs font-bold text-white">{player.matches || 0}</div>
+              <div className="text-xs text-blue-400">Matches</div>
+            </div>
+            <div className="p-1.5 text-center border rounded bg-gradient-to-r from-indigo-500/10 to-purple-600/10 border-indigo-500/20">
               <div className="text-xs font-bold text-white">{player.age}</div>
-              <div className="text-xs text-blue-400">Age</div>
+              <div className="text-xs text-indigo-400">Age</div>
+            </div>
+            <div className="p-1.5 text-center border rounded bg-gradient-to-r from-purple-500/10 to-pink-600/10 border-purple-500/20">
+              <div className="text-xs font-bold text-white">{player.ranking || 'N/A'}</div>
+              <div className="text-xs text-purple-400">Rank</div>
             </div>
           </div>
 
@@ -365,7 +359,7 @@ const HockeyManagement = () => {
             <div className="flex items-center space-x-1">
               <button
                 onClick={() => updatePlayerStats(player.id)}
-                className="p-1 text-xs text-teal-400 transition-all duration-300 rounded bg-teal-500/20 hover:bg-teal-500/30"
+                className="p-1 text-xs text-blue-400 transition-all duration-300 rounded bg-blue-500/20 hover:bg-blue-500/30"
                 title="Update Stats"
               >
                 <Edit2 className="w-2.5 h-2.5" />
@@ -386,9 +380,9 @@ const HockeyManagement = () => {
     <div className="relative w-screen h-screen overflow-hidden text-white" style={{ fontFamily: "'Poppins', sans-serif" }}>
       {/* Enhanced Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
-        <div className="absolute top-0 rounded-full left-1/4 w-96 h-96 bg-teal-500/4 blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 rounded-full right-1/4 w-80 h-80 bg-cyan-500/4 blur-3xl animate-pulse" style={{animationDelay: '1s'}} />
-        <div className="absolute w-64 h-64 transform -translate-x-1/2 -translate-y-1/2 rounded-full top-1/2 left-1/2 bg-blue-500/3 blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
+        <div className="absolute top-0 rounded-full left-1/4 w-96 h-96 bg-blue-500/4 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 rounded-full right-1/4 w-80 h-80 bg-indigo-500/4 blur-3xl animate-pulse" style={{animationDelay: '1s'}} />
+        <div className="absolute w-64 h-64 transform -translate-x-1/2 -translate-y-1/2 rounded-full top-1/2 left-1/2 bg-purple-500/3 blur-3xl animate-pulse" style={{animationDelay: '2s'}} />
         
         <div className="absolute inset-0 opacity-[0.015]">
           <div 
@@ -406,7 +400,7 @@ const HockeyManagement = () => {
         <div className="mb-12">
           <div className="relative">
             {/* Header background glow */}
-            <div className="absolute -inset-4 bg-gradient-to-r from-teal-500/20 via-cyan-500/20 to-teal-500/20 rounded-3xl blur-2xl animate-pulse"></div>
+            <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 via-indigo-500/20 to-blue-500/20 rounded-3xl blur-2xl animate-pulse"></div>
             
             <div className="relative p-8 border bg-gradient-to-r from-slate-900/80 via-slate-800/80 to-slate-900/80 backdrop-blur-2xl rounded-3xl border-white/20">
               <div className="flex items-center justify-between max-w-full">
@@ -420,35 +414,35 @@ const HockeyManagement = () => {
                         navigate('/superadmin/sports');
                       }
                     }}
-                    className="relative p-3 transition-all duration-300 border group bg-gradient-to-r from-teal-500/20 to-cyan-500/20 border-teal-500/30 rounded-2xl hover:from-teal-500/30 hover:to-cyan-500/30"
+                    className="relative p-3 transition-all duration-300 border group bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border-blue-500/30 rounded-2xl hover:from-blue-500/30 hover:to-indigo-500/30"
                   >
-                    <ArrowLeft className="w-6 h-6 text-white transition-colors duration-300 group-hover:text-teal-400" />
+                    <ArrowLeft className="w-6 h-6 text-white transition-colors duration-300 group-hover:text-blue-400" />
                   </button>
                   
                   <div className="flex items-center flex-1 min-w-0 space-x-3">
                     <div className="relative flex-shrink-0">
-                      <div className="p-2.5 shadow-lg bg-gradient-to-br from-teal-500 via-cyan-600 to-blue-600 rounded-lg">
+                      <div className="p-2.5 shadow-lg bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-lg">
                         <Trophy className="w-6 h-6 text-white" />
                       </div>
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h1 className="mb-0.5 text-xl font-bold text-transparent bg-gradient-to-r from-teal-400 via-cyan-500 to-blue-500 bg-clip-text lg:text-2xl xl:text-3xl truncate">
-                        {activeView === 'teams' ? 'Hockey Management Hub' : 
-                         activeView === 'sub-admins' ? 'Hockey Sub-Administrators' :
+                      <h1 className="mb-0.5 text-xl font-bold text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text lg:text-2xl xl:text-3xl truncate">
+                        {activeView === 'teams' ? 'Table Tennis Management Hub' : 
+                         activeView === 'sub-admins' ? 'Table Tennis Sub-Administrators' :
                          `${selectedTeam?.name} Squad`}
                       </h1>
                       <p className="text-sm font-medium truncate text-white/80 lg:text-base">
                         {activeView === 'teams' ? 'Professional Team & Sub-Admin Management System' : 
-                         activeView === 'sub-admins' ? 'Manage Hockey Sub-Administrator Access & Permissions' :
+                         activeView === 'sub-admins' ? 'Manage Table Tennis Sub-Administrator Access & Permissions' :
                          'Elite Player Roster & Performance Analytics'}
                       </p>
                       <div className="flex items-center mt-1 space-x-3">
-                        <div className="flex items-center space-x-1 text-teal-400">
-                          <div className="w-1 h-1 rounded-full bg-teal-400 animate-pulse"></div>
+                        <div className="flex items-center space-x-1 text-blue-400">
+                          <div className="w-1 h-1 rounded-full bg-blue-400 animate-pulse"></div>
                           <span className="text-xs font-medium lg:text-sm">Live System</span>
                         </div>
-                        <div className="flex items-center space-x-1 text-cyan-400">
+                        <div className="flex items-center space-x-1 text-indigo-400">
                           <Shield className="w-3 h-3" />
                           <span className="text-xs font-medium">Secure Platform</span>
                         </div>
@@ -459,7 +453,7 @@ const HockeyManagement = () => {
                 
                 <div className="flex items-center space-x-2 lg:space-x-3">
                   {loading && (
-                    <div className="flex items-center space-x-1.5 text-teal-400">
+                    <div className="flex items-center space-x-1.5 text-blue-400">
                       <Loader className="w-3.5 h-3.5 animate-spin" />
                       <span className="text-xs">Loading...</span>
                     </div>
@@ -472,7 +466,7 @@ const HockeyManagement = () => {
                         onClick={() => setActiveView('teams')}
                         className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all duration-300 ${
                           activeView === 'teams' 
-                            ? 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white' 
+                            ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white' 
                             : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
                         }`}
                       >
@@ -505,7 +499,7 @@ const HockeyManagement = () => {
                         ? 'bg-gradient-to-r from-gray-600 to-gray-700 cursor-not-allowed opacity-60' 
                         : activeView === 'sub-admins'
                         ? 'bg-gradient-to-r from-purple-500 via-pink-600 to-red-600 hover:from-purple-600 hover:via-pink-700 hover:to-red-700'
-                        : 'bg-gradient-to-r from-teal-500 via-cyan-600 to-blue-600 hover:from-teal-600 hover:via-cyan-700 hover:to-blue-700'
+                        : 'bg-gradient-to-r from-blue-500 via-indigo-600 to-purple-600 hover:from-blue-600 hover:via-indigo-700 hover:to-purple-700'
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5 text-white" />
@@ -524,19 +518,19 @@ const HockeyManagement = () => {
           {(activeView === 'teams' || activeView === 'sub-admins') && (
             <div className="max-w-xl mx-auto mt-4">
               <div className="relative group">
-                <div className="absolute transition-opacity duration-300 opacity-0 -inset-0.5 bg-gradient-to-r from-teal-500/20 to-blue-500/20 rounded-lg blur group-focus-within:opacity-100"></div>
+                <div className="absolute transition-opacity duration-300 opacity-0 -inset-0.5 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg blur group-focus-within:opacity-100"></div>
                 <div className="relative flex items-center">
-                  <Search className="absolute z-10 w-3.5 h-3.5 text-teal-400 left-3" />
+                  <Search className="absolute z-10 w-3.5 h-3.5 text-blue-400 left-3" />
                   <input
                     type="text"
                     placeholder={activeView === 'teams' ? "Search teams by name or abbreviation..." : "Search sub-admins by name, email, or specialization..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full py-2.5 pr-5 text-sm text-white transition-all duration-300 border pl-9 bg-gradient-to-r from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-white/20 rounded-lg placeholder-white/50 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20"
+                    className="w-full py-2.5 pr-5 text-sm text-white transition-all duration-300 border pl-9 bg-gradient-to-r from-slate-800/90 to-slate-900/90 backdrop-blur-xl border-white/20 rounded-lg placeholder-white/50 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
                   />
                   <div className="absolute right-3">
-                    <div className="px-2 py-0.5 border rounded-md bg-teal-500/20 border-teal-500/30">
-                      <span className="text-xs font-medium text-teal-400">
+                    <div className="px-2 py-0.5 border rounded-md bg-blue-500/20 border-blue-500/30">
+                      <span className="text-xs font-medium text-blue-400">
                         {activeView === 'teams' ? `${filteredTeams.length} Teams` : `${filteredSubAdmins.length} Sub-Admins`}
                       </span>
                     </div>
@@ -551,8 +545,8 @@ const HockeyManagement = () => {
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
-              <Loader className="w-10 h-10 mx-auto mb-3 text-teal-400 animate-spin" />
-              <p className="text-base font-medium text-white/70">Loading hockey data...</p>
+              <Loader className="w-10 h-10 mx-auto mb-3 text-blue-400 animate-spin" />
+              <p className="text-base font-medium text-white/70">Loading table tennis data...</p>
             </div>
           </div>
         )}
@@ -573,11 +567,11 @@ const HockeyManagement = () => {
             <div className="p-6 border bg-gradient-to-r from-slate-900/80 via-slate-800/80 to-slate-900/80 backdrop-blur-2xl rounded-2xl border-white/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 shadow-lg bg-gradient-to-br from-teal-500 via-cyan-600 to-blue-600 rounded-xl">
+                  <div className="p-3 shadow-lg bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 rounded-xl">
                     <Trophy className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-transparent bg-gradient-to-r from-teal-400 via-cyan-500 to-blue-500 bg-clip-text">
+                    <h2 className="text-2xl font-bold text-transparent bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text">
                       {selectedTeam.name}
                     </h2>
                     <p className="text-white/70">Captain: {selectedTeam.captain} • Coach: {selectedTeam.coach}</p>
@@ -585,7 +579,7 @@ const HockeyManagement = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-3xl font-bold text-teal-400">{selectedTeam.players?.length || 0}</div>
+                  <div className="text-3xl font-bold text-blue-400">{selectedTeam.players?.length || 0}</div>
                   <div className="text-white/70">Players</div>
                 </div>
               </div>
@@ -603,7 +597,7 @@ const HockeyManagement = () => {
         {/* Sub-Admins View */}
         {activeView === 'sub-admins' && (
           <div className="text-center py-16">
-            <Trophy className="w-16 h-16 mx-auto mb-4 text-teal-400" />
+            <Trophy className="w-16 h-16 mx-auto mb-4 text-blue-400" />
             <h3 className="text-xl font-bold text-white mb-2">Sub-Admin Management</h3>
             <p className="text-white/70">Sub-administrator functionality coming soon...</p>
           </div>
@@ -612,14 +606,14 @@ const HockeyManagement = () => {
         {/* Empty State */}
         {activeView === 'teams' && filteredTeams.length === 0 && !loading && (
           <div className="text-center py-16">
-            <Trophy className="w-16 h-16 mx-auto mb-4 text-teal-400" />
+            <Trophy className="w-16 h-16 mx-auto mb-4 text-blue-400" />
             <h3 className="text-xl font-bold text-white mb-2">No Teams Found</h3>
             <p className="text-white/70 mb-4">
-              {searchTerm ? 'No teams match your search criteria.' : 'Get started by creating your first hockey team.'}
+              {searchTerm ? 'No teams match your search criteria.' : 'Get started by creating your first table tennis team.'}
             </p>
             <button
               onClick={() => setShowAddTeamModal(true)}
-              className="px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-lg hover:from-teal-600 hover:to-cyan-700 transition-all duration-300"
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-300"
             >
               Create First Team
             </button>
@@ -630,4 +624,4 @@ const HockeyManagement = () => {
   );
 };
 
-export default HockeyManagement;
+export default TableTennisManagement;

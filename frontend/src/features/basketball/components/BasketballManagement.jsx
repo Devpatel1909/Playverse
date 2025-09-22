@@ -31,7 +31,14 @@ import {
   X,
   Edit2,
   RefreshCw,
-  Loader
+  Loader,
+  Settings,
+  Key,
+  Eye,
+  EyeOff,
+  UserCheck,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -66,6 +73,24 @@ const BasketballManagement = () => {
     }
   ]);
   const [loading, setLoading] = useState(false);
+  
+  // Sub Admin Management State
+  const [subAdmins, setSubAdmins] = useState([]);
+  const [showAddSubAdminModal, setShowAddSubAdminModal] = useState(false);
+  const [showPassword, setShowPassword] = useState({});
+  const [newSubAdmin, setNewSubAdmin] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    username: '',
+    password: '',
+    role: 'score_manager',
+    permissions: {
+      manageScores: true,
+      scheduleMatches: false,
+      viewReports: true
+    }
+  });
 
   const handleBack = () => {
     navigate('/superadmin/sports');
@@ -92,6 +117,122 @@ const BasketballManagement = () => {
       setSelectedTeam(updatedTeams.find(t => t.id === selectedTeam.id));
     }
     setShowAddPlayerModal(false);
+  };
+
+  // Load sub-admins on component mount
+  useEffect(() => {
+    loadSubAdmins();
+  }, []);
+
+  // Load sub-admins from localStorage
+  const loadSubAdmins = () => {
+    try {
+      const storedSubAdmins = localStorage.getItem('basketballSubAdmins');
+      if (storedSubAdmins) {
+        setSubAdmins(JSON.parse(storedSubAdmins));
+      } else {
+        // Default sub-admins for basketball
+        const defaultSubAdmins = [
+          {
+            id: 1,
+            name: 'Kiran Patel',
+            email: 'kiran.scores@basketball.com',
+            phone: '+91 98765 43210',
+            username: 'kiran_scores',
+            password: 'Basketball@123',
+            role: 'score_manager',
+            permissions: {
+              manageScores: true,
+              scheduleMatches: false,
+              viewReports: true
+            },
+            status: 'active',
+            lastLogin: '2024-01-15 09:30 AM',
+            createdAt: '2024-01-01'
+          }
+        ];
+        setSubAdmins(defaultSubAdmins);
+        localStorage.setItem('basketballSubAdmins', JSON.stringify(defaultSubAdmins));
+      }
+    } catch (error) {
+      console.error('Error loading sub-admins:', error);
+    }
+  };
+
+  // Sub Admin Management Functions
+  const handleAddSubAdmin = () => {
+    if (!newSubAdmin.name || !newSubAdmin.email || !newSubAdmin.username || !newSubAdmin.password) {
+      alert('❌ Please fill in all required fields');
+      return;
+    }
+
+    const existingSubAdmin = subAdmins.find(admin => 
+      admin.username === newSubAdmin.username || admin.email === newSubAdmin.email
+    );
+    
+    if (existingSubAdmin) {
+      alert('❌ Username or email already exists. Please choose different credentials.');
+      return;
+    }
+
+    const subAdminData = {
+      id: Date.now(),
+      ...newSubAdmin,
+      status: 'active',
+      lastLogin: 'Never',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    const updatedSubAdmins = [...subAdmins, subAdminData];
+    setSubAdmins(updatedSubAdmins);
+    localStorage.setItem('basketballSubAdmins', JSON.stringify(updatedSubAdmins));
+
+    setNewSubAdmin({
+      name: '',
+      email: '',
+      phone: '',
+      username: '',
+      password: '',
+      role: 'score_manager',
+      permissions: {
+        manageScores: true,
+        scheduleMatches: false,
+        viewReports: true
+      }
+    });
+    setShowAddSubAdminModal(false);
+
+    alert(`✅ Sub Admin Created Successfully!\n\n${subAdminData.name} has been added as a ${subAdminData.role.replace('_', ' ')}.\n\nCredentials:\nUsername: ${subAdminData.username}\nPassword: ${subAdminData.password}`);
+  };
+
+  const handleDeleteSubAdmin = (adminId) => {
+    const admin = subAdmins.find(a => a.id === adminId);
+    if (window.confirm(`Are you sure you want to delete sub-admin "${admin.name}"?`)) {
+      const updatedSubAdmins = subAdmins.filter(a => a.id !== adminId);
+      setSubAdmins(updatedSubAdmins);
+      localStorage.setItem('basketballSubAdmins', JSON.stringify(updatedSubAdmins));
+      alert(`✅ Sub Admin "${admin.name}" has been deleted successfully.`);
+    }
+  };
+
+  const handleToggleSubAdminStatus = (adminId) => {
+    const updatedSubAdmins = subAdmins.map(admin => 
+      admin.id === adminId 
+        ? { ...admin, status: admin.status === 'active' ? 'inactive' : 'active' }
+        : admin
+    );
+    setSubAdmins(updatedSubAdmins);
+    localStorage.setItem('basketballSubAdmins', JSON.stringify(updatedSubAdmins));
+    
+    const admin = updatedSubAdmins.find(a => a.id === adminId);
+    alert(`✅ Sub Admin "${admin.name}" has been ${admin.status === 'active' ? 'activated' : 'deactivated'}.`);
+  };
+
+  const togglePasswordVisibility = (adminId) => {
+    setShowPassword(prev => ({
+      ...prev,
+      [adminId]: !prev[adminId]
+    }));
   };
 
   const filteredTeams = teams.filter(team =>
