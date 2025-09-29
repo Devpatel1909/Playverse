@@ -281,7 +281,7 @@ const FootballManagement = () => {
 
     return (
       <div className="cursor-pointer group">
-        <div className="relative overflow-hidden transition-all duration-300 border aspect-square bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
+        <div className="relative overflow-hidden transition-all duration-300 border h-480 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
           
           {/* Background overlay */}
           <div className="absolute -inset-0.5 bg-gradient-to-br from-cyan-500 via-purple-600 to-pink-700 rounded-xl opacity-0 group-hover:opacity-20 transition-all duration-300"></div>
