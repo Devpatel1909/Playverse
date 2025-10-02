@@ -57,6 +57,42 @@ const CricketManagement = () => {
   const [playerPhotos, setPlayerPhotos] = useState({});
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [selectedPlayerForPhoto, setSelectedPlayerForPhoto] = useState(null);
+  const [showEditPlayerModal, setShowEditPlayerModal] = useState(false);
+  const [selectedPlayerForEdit, setSelectedPlayerForEdit] = useState(null);
+  const [editPlayerData, setEditPlayerData] = useState({
+    name: '',
+    role: '',
+    age: '',
+    contactPhone: '',
+    contactEmail: '',
+    experience: ''
+  });
+  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [selectedTeamForEdit, setSelectedTeamForEdit] = useState(null);
+  const [editTeamData, setEditTeamData] = useState({
+    name: '',
+    shortName: '',
+    captain: '',
+    coach: '',
+    homeGround: '',
+    contactEmail: '',
+    contactPhone: '',
+    established: ''
+  });
+  const [showEditSubAdminModal, setShowEditSubAdminModal] = useState(false);
+  const [selectedSubAdminForEdit, setSelectedSubAdminForEdit] = useState(null);
+  const [editSubAdminData, setEditSubAdminData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    specialization: '',
+    permissions: {
+      manageTeams: true,
+      managePlayers: true,
+      viewReports: true,
+      manageMatches: false
+    }
+  });
   const [teams, setTeams] = useState([
     {
       id: 1,
@@ -264,6 +300,112 @@ const CricketManagement = () => {
     }
   };
 
+  // Edit sub-admin functionality
+  const handleEditSubAdmin = (subAdmin) => {
+    setSelectedSubAdminForEdit(subAdmin);
+    setEditSubAdminData({
+      name: subAdmin.name || '',
+      email: subAdmin.email || '',
+      phone: subAdmin.phone || '',
+      specialization: subAdmin.specialization || '',
+      permissions: {
+        manageTeams: subAdmin.permissions?.manageTeams || false,
+        managePlayers: subAdmin.permissions?.managePlayers || false,
+        viewReports: subAdmin.permissions?.viewReports || false,
+        manageMatches: subAdmin.permissions?.manageMatches || false
+      }
+    });
+    setShowEditSubAdminModal(true);
+  };
+
+  const handleUpdateSubAdmin = async () => {
+    if (!editSubAdminData.name || !editSubAdminData.email) {
+      alert('❌ Please fill in all required fields (Name and Email)');
+      return;
+    }
+
+    // Check if email already exists (excluding current sub-admin)
+    const emailExists = subAdmins.some(admin => 
+      admin.email.toLowerCase() === editSubAdminData.email.toLowerCase() && 
+      (admin._id || admin.id) !== (selectedSubAdminForEdit._id || selectedSubAdminForEdit.id)
+    );
+    if (emailExists) {
+      alert('❌ Email already exists. Please use a different email address.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await subAdminAPIService.updateSubAdmin(
+        selectedSubAdminForEdit._id || selectedSubAdminForEdit.id, 
+        editSubAdminData
+      );
+      
+      if (response.success && response.data?.success) {
+        // Refresh from server to keep in sync
+        await loadSubAdminsFromAPI();
+        
+        setShowEditSubAdminModal(false);
+        setSelectedSubAdminForEdit(null);
+        
+        setTimeout(() => {
+          alert(`✅ Sub-Admin Updated Successfully!\n\n${editSubAdminData.name} has been updated in the database!\nEmail: ${editSubAdminData.email}\nSpecialization: ${editSubAdminData.specialization}`);
+        }, 100);
+      } else {
+        const errMsg = response.error || response.data?.error || response.data?.message || 'Unknown error';
+        alert(`❌ Failed to update sub-admin.\n\n${errMsg}`);
+      }
+    } catch (error) {
+      console.error('Failed to update sub-admin:', error);
+      alert(`❌ Failed to Update Sub-Admin\n\nError: ${error.message}\n\nPlease check your data and try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete sub-admin functionality
+  const handleDeleteSubAdmin = async (subAdmin) => {
+    const confirmDelete = window.confirm(
+      `⚠️ Delete Sub-Administrator?\n\nSub-Admin: ${subAdmin.name}\nEmail: ${subAdmin.email}\nSpecialization: ${subAdmin.specialization}\nStatus: ${subAdmin.status}\n\nAre you sure you want to permanently delete this sub-administrator?\n\nThis action cannot be undone and will:\n• Remove all access permissions\n• Delete login credentials\n• Remove from all assigned teams\n• Cannot be recovered once deleted\n\nPermissions that will be lost:\n• Manage Teams: ${subAdmin.permissions?.manageTeams ? '✓' : '✗'}\n• Manage Players: ${subAdmin.permissions?.managePlayers ? '✓' : '✗'}\n• View Reports: ${subAdmin.permissions?.viewReports ? '✓' : '✗'}\n• Manage Matches: ${subAdmin.permissions?.manageMatches ? '✓' : '✗'}`
+    );
+    
+    if (!confirmDelete) return;
+
+    // Additional confirmation by asking user to type sub-admin name
+    const nameConfirmation = prompt(
+      `⚠️ FINAL CONFIRMATION\n\nTo permanently delete sub-administrator "${subAdmin.name}", please type the exact name below:\n\n(This will remove all access and cannot be undone)`
+    );
+    
+    if (nameConfirmation !== subAdmin.name) {
+      alert('❌ Name does not match. Deletion cancelled for safety.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await subAdminAPIService.deleteSubAdmin(subAdmin._id || subAdmin.id);
+      
+      if (response.success && response.data?.success) {
+        // Refresh from server to keep in sync
+        await loadSubAdminsFromAPI();
+        
+        setTimeout(() => {
+          alert(`✅ Sub-Admin Deleted Successfully!\n\n${subAdmin.name} has been permanently removed from the system.\n\nDeleted:\n• Login access\n• All permissions\n• Profile information\n• System access\n\nRemaining sub-admins: ${subAdmins.length - 1}`);
+        }, 100);
+      } else {
+        const errMsg = response.error || response.data?.error || response.data?.message || 'Unknown error';
+        alert(`❌ Failed to delete sub-admin.\n\n${errMsg}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete sub-admin:', error);
+      alert(`❌ Failed to Delete Sub-Admin\n\nError: ${error.message}\n\nPlease try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Update player statistics
   const updatePlayerStats = (playerId) => {
     const newRuns = Math.floor(Math.random() * 50) + 20;
@@ -299,6 +441,117 @@ const CricketManagement = () => {
       .find(p => p.id === playerId);
     
     alert(`📊 Stats Updated!\n\n${updatedPlayer.name} performance updated:\n+${newRuns} runs\n+${newWickets} wickets\n+${newCatches} catches\n\nTotal Matches: ${updatedPlayer.matches}\nTotal Runs: ${updatedPlayer.runs}\nAverage: ${updatedPlayer.average?.toFixed(1)}`);
+  };
+
+  // Edit player functionality
+  const handleEditPlayer = (player) => {
+    setSelectedPlayerForEdit(player);
+    setEditPlayerData({
+      name: player.name || '',
+      role: player.role || '',
+      age: player.age?.toString() || '',
+      contactPhone: player.contactPhone || '',
+      contactEmail: player.contactEmail || '',
+      experience: player.experience || ''
+    });
+    setShowEditPlayerModal(true);
+  };
+
+  const handleUpdatePlayer = async () => {
+    if (!editPlayerData.name || !editPlayerData.role || !selectedPlayerForEdit) {
+      alert('❌ Please fill in all required fields (Name and Role)');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const playerData = {
+        name: editPlayerData.name.trim(),
+        role: editPlayerData.role,
+        age: parseInt(editPlayerData.age) || selectedPlayerForEdit.age || 18,
+        contactPhone: editPlayerData.contactPhone?.trim() || '',
+        contactEmail: editPlayerData.contactEmail?.trim().toLowerCase() || '',
+        experience: editPlayerData.experience?.trim() || '0 years'
+      };
+      
+      cricketAPIService.validatePlayerData({
+        ...playerData,
+        jerseyNumber: selectedPlayerForEdit.jerseyNumber || 1
+      });
+      
+      const response = await cricketAPIService.updatePlayer(
+        selectedTeam._id || selectedTeam.id, 
+        selectedPlayerForEdit._id || selectedPlayerForEdit.id, 
+        playerData
+      );
+      
+      if (response.success && response.data) {
+        const updatedTeams = teams.map(team => 
+          (team._id || team.id) === (selectedTeam._id || selectedTeam.id) 
+            ? response.data.team 
+            : team
+        );
+        
+        setTeams(updatedTeams);
+        setSelectedTeam(response.data.team);
+        
+        setShowEditPlayerModal(false);
+        setSelectedPlayerForEdit(null);
+        
+        setTimeout(() => {
+          alert(`✅ Player Updated Successfully!\n\n${response.data.player.name} has been updated in the database!\nTeam: ${response.data.team.name}\nRole: ${response.data.player.role}`);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to update player:', error);
+      alert(`❌ Failed to Update Player\n\nError: ${error.message}\n\nPlease check your data and try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete player functionality
+  const handleDeletePlayer = async (player) => {
+    const confirmDelete = window.confirm(
+      `⚠️ Delete Player?\n\nPlayer: ${player.name}\nRole: ${player.role}\nJersey: #${player.jerseyNumber}\nTeam: ${selectedTeam.name}\n\nAre you sure you want to permanently remove this player?\n\nThis action cannot be undone and will:\n• Remove all player statistics\n• Delete player photo (if any)\n• Free up the jersey number\n• Reduce team size to ${(selectedTeam.players?.length || 1) - 1}/15`
+    );
+    
+    if (!confirmDelete) return;
+
+    try {
+      setLoading(true);
+      
+      const response = await cricketAPIService.deletePlayer(
+        selectedTeam._id || selectedTeam.id, 
+        player._id || player.id
+      );
+      
+      if (response.success) {
+        // Refresh team data from API
+        const updatedTeamResponse = await cricketAPIService.getTeamById(selectedTeam._id || selectedTeam.id);
+        
+        if (updatedTeamResponse.success && updatedTeamResponse.data) {
+          const updatedTeams = teams.map(team => 
+            (team._id || team.id) === (selectedTeam._id || selectedTeam.id) 
+              ? updatedTeamResponse.data 
+              : team
+          );
+          
+          setTeams(updatedTeams);
+          setSelectedTeam(updatedTeamResponse.data);
+          
+          setTimeout(() => {
+            alert(`✅ Player Deleted Successfully!\n\n${player.name} has been removed from ${selectedTeam.name}.\nTeam size: ${updatedTeamResponse.data.players.length}/15`);
+          }, 100);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete player:', error);
+      alert(`❌ Failed to Delete Player\n\nError: ${error.message}\n\nPlease try again.`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const [newTeam, setNewTeam] = useState({
@@ -400,6 +653,111 @@ const CricketManagement = () => {
     }
   };
 
+  // Edit team functionality
+  const handleEditTeam = (team) => {
+    setSelectedTeamForEdit(team);
+    setEditTeamData({
+      name: team.name || '',
+      shortName: team.shortName || '',
+      captain: team.captain || '',
+      coach: team.coach || '',
+      homeGround: team.homeGround || '',
+      contactEmail: team.contactEmail || '',
+      contactPhone: team.contactPhone || '',
+      established: team.established || ''
+    });
+    setShowEditTeamModal(true);
+  };
+
+  const handleUpdateTeam = async () => {
+    if (!editTeamData.name || !editTeamData.shortName || !editTeamData.contactEmail || !editTeamData.contactPhone) {
+      alert('❌ Please fill in all required fields (Name, Short Name, Contact Email, and Contact Phone)');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      cricketAPIService.validateTeamData(editTeamData);
+      const response = await cricketAPIService.updateTeam(
+        selectedTeamForEdit._id || selectedTeamForEdit.id, 
+        editTeamData
+      );
+      
+      if (response.success && response.data) {
+        const updatedTeams = teams.map(team => 
+          (team._id || team.id) === (selectedTeamForEdit._id || selectedTeamForEdit.id) 
+            ? response.data 
+            : team
+        );
+        
+        setTeams(updatedTeams);
+        
+        // Update selectedTeam if it's the one being edited
+        if (selectedTeam && (selectedTeam._id || selectedTeam.id) === (selectedTeamForEdit._id || selectedTeamForEdit.id)) {
+          setSelectedTeam(response.data);
+        }
+        
+        setShowEditTeamModal(false);
+        setSelectedTeamForEdit(null);
+        
+        setTimeout(() => {
+          alert(`✅ Team Updated Successfully!\n\n${response.data.name} has been updated in the database!\nShort Name: ${response.data.shortName}\nCaptain: ${response.data.captain}\nCoach: ${response.data.coach}`);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to update team:', error);
+      alert(`❌ Failed to Update Team\n\nError: ${error.message}\n\nPlease check your data and try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete team functionality
+  const handleDeleteTeam = async (team) => {
+    const confirmDelete = window.confirm(
+      `⚠️ Delete Team?\n\nTeam: ${team.name} (${team.shortName})\nCaptain: ${team.captain}\nPlayers: ${team.players?.length || 0}\nEstablished: ${team.established}\n\nAre you sure you want to permanently delete this team?\n\nThis action cannot be undone and will:\n• Delete all ${team.players?.length || 0} players in the team\n• Remove all team statistics and history\n• Delete team logo (if any)\n• Remove all player photos\n• Cannot be recovered once deleted\n\nType the team name to confirm: ${team.name}`
+    );
+    
+    if (!confirmDelete) return;
+
+    // Additional confirmation by asking user to type team name
+    const teamNameConfirmation = prompt(
+      `⚠️ FINAL CONFIRMATION\n\nTo permanently delete "${team.name}", please type the exact team name below:\n\n(This will delete ${team.players?.length || 0} players and all team data)`
+    );
+    
+    if (teamNameConfirmation !== team.name) {
+      alert('❌ Team name does not match. Deletion cancelled for safety.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const response = await cricketAPIService.deleteTeam(team._id || team.id);
+      
+      if (response.success) {
+        const updatedTeams = teams.filter(t => (t._id || t.id) !== (team._id || team.id));
+        setTeams(updatedTeams);
+        
+        // If the deleted team was selected, go back to teams view
+        if (selectedTeam && (selectedTeam._id || selectedTeam.id) === (team._id || team.id)) {
+          setSelectedTeam(null);
+          setActiveView('teams');
+        }
+        
+        setTimeout(() => {
+          alert(`✅ Team Deleted Successfully!\n\n${team.name} and all associated data has been permanently removed from the database.\n\nDeleted:\n• Team information\n• ${team.players?.length || 0} players\n• All statistics\n• Photos and files\n\nRemaining teams: ${updatedTeams.length}`);
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Failed to delete team:', error);
+      alert(`❌ Failed to Delete Team\n\nError: ${error.message}\n\nPlease try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddPlayer = async () => {
     if (!newPlayer.name || !newPlayer.role || !selectedTeam) {
       alert('❌ Please fill in all required fields (Name and Role)');
@@ -471,11 +829,27 @@ const CricketManagement = () => {
 
   // Square Team Card Component
   const TeamCard = ({ team }) => {
+    const handleCardClick = (e) => {
+      // Don't navigate if clicking on action buttons
+      if (e.target.closest('.team-action-button')) {
+        return;
+      }
+      setSelectedTeam(team);
+      setActiveView('team-details');
+    };
+
+    const handleEditClick = (e) => {
+      e.stopPropagation();
+      handleEditTeam(team);
+    };
+
+    const handleDeleteClick = (e) => {
+      e.stopPropagation();
+      handleDeleteTeam(team);
+    };
+
     return (
-      <div className="cursor-pointer group" onClick={() => {
-        setSelectedTeam(team);
-        setActiveView('team-details');
-      }}>
+      <div className="cursor-pointer group" onClick={handleCardClick}>
         <div className="relative overflow-hidden transition-all duration-300 border h-480 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/10 group-hover:border-white/30 group-hover:shadow-lg group-hover:transform group-hover:scale-105">
           
           {/* Background overlay */}
@@ -565,9 +939,20 @@ const CricketManagement = () => {
                   <div className="px-1.5 py-0.5 border rounded bg-gradient-to-r from-emerald-500/20 to-blue-500/20 border-emerald-500/30">
                     <span className="text-xs font-medium text-white">Pro</span>
                   </div>
-                  <div className="p-1 transition-colors rounded bg-white/10 group-hover:bg-emerald-500/20">
-                    <Edit className="w-2.5 h-2.5 text-white/60 group-hover:text-emerald-400" />
-                  </div>
+                  <button
+                    onClick={handleEditClick}
+                    className="team-action-button p-1.5 transition-all duration-300 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 hover:scale-110 border border-emerald-500/30"
+                    title="Edit Team Information"
+                  >
+                    <Edit className="w-2.5 h-2.5 text-emerald-400" />
+                  </button>
+                  <button
+                    onClick={handleDeleteClick}
+                    className="team-action-button p-1.5 transition-all duration-300 rounded-md bg-red-500/20 hover:bg-red-500/30 hover:scale-110 border border-red-500/30"
+                    title="Delete Team"
+                  >
+                    <Trash2 className="w-2.5 h-2.5 text-red-400" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -588,6 +973,16 @@ const CricketManagement = () => {
 
     const getPermissionCount = (permissions) => {
       return Object.values(permissions).filter(Boolean).length;
+    };
+
+    const handleEditClick = (e) => {
+      e.stopPropagation();
+      handleEditSubAdmin(subAdmin);
+    };
+
+    const handleDeleteClick = (e) => {
+      e.stopPropagation();
+      handleDeleteSubAdmin(subAdmin);
     };
 
     return (
@@ -685,9 +1080,20 @@ const CricketManagement = () => {
                   <div className="px-1.5 py-0.5 border rounded bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border-cyan-500/30">
                     <span className="text-xs font-medium text-white">Auth</span>
                   </div>
-                  <div className="p-1 transition-colors rounded bg-white/10 group-hover:bg-cyan-500/20">
-                    <MoreVertical className="w-2.5 h-2.5 text-white/60 group-hover:text-cyan-400" />
-                  </div>
+                  <button
+                    onClick={handleEditClick}
+                    className="subadmin-action-button p-1.5 transition-all duration-300 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 hover:scale-110 border border-emerald-500/30"
+                    title="Edit Sub-Admin Information"
+                  >
+                    <Edit className="w-2.5 h-2.5 text-emerald-400" />
+                  </button>
+                  <button
+                    onClick={handleDeleteClick}
+                    className="subadmin-action-button p-1.5 transition-all duration-300 rounded-md bg-red-500/20 hover:bg-red-500/30 hover:scale-110 border border-red-500/30"
+                    title="Delete Sub-Admin"
+                  >
+                    <Trash2 className="w-2.5 h-2.5 text-red-400" />
+                  </button>
                 </div>
               </div>
               
@@ -803,21 +1209,30 @@ const CricketManagement = () => {
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
             <div className="flex items-center space-x-1.5">
               <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-xs font-medium text-green-400">Performance</span>
+              <span className="text-xs font-medium text-green-400">Actions</span>
             </div>
             <div className="flex items-center space-x-1">
               <button
-                onClick={() => updatePlayerStats(player.id)}
-                className="p-1 text-xs text-blue-400 transition-all duration-300 rounded bg-blue-500/20 hover:bg-blue-500/30"
-                title="Update Stats"
+                onClick={() => handleEditPlayer(player)}
+                className="p-1.5 text-xs text-emerald-400 transition-all duration-300 rounded-md bg-emerald-500/20 hover:bg-emerald-500/30 hover:scale-110 border border-emerald-500/30"
+                title="Edit Player Information"
               >
-                <Edit2 className="w-2.5 h-2.5" />
+                <Edit className="w-3 h-3" />
               </button>
-              <div className="flex space-x-0.5">
-                {[1, 2, 3].map((star) => (
-                  <Star key={star} className="w-2.5 h-2.5 text-yellow-400 fill-current" />
-                ))}
-              </div>
+              <button
+                onClick={() => handleDeletePlayer(player)}
+                className="p-1.5 text-xs text-red-400 transition-all duration-300 rounded-md bg-red-500/20 hover:bg-red-500/30 hover:scale-110 border border-red-500/30"
+                title="Delete Player"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => updatePlayerStats(player.id)}
+                className="p-1.5 text-xs text-blue-400 transition-all duration-300 rounded-md bg-blue-500/20 hover:bg-blue-500/30 hover:scale-110 border border-blue-500/30"
+                title="Update Statistics"
+              >
+                <BarChart3 className="w-3 h-3" />
+              </button>
             </div>
           </div>
         </div>
@@ -1455,6 +1870,556 @@ const CricketManagement = () => {
                   <button
                     onClick={() => setShowAddPlayerModal(false)}
                     className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Player Modal */}
+        {showEditPlayerModal && selectedPlayerForEdit && selectedTeam && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-3xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-blue-500/20 rounded-xl blur-lg"></div>
+              <div className="relative bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border border-white/20 rounded-xl p-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-blue-600">
+                      <Edit className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Edit Player Information</h2>
+                      <p className="text-sm text-white/70">Update {selectedPlayerForEdit.name} details</p>
+                      <div className="mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium inline-block border bg-blue-500/20 text-blue-300 border-blue-500/30">
+                        Team: {selectedTeam.name} • Jersey #{selectedPlayerForEdit.jerseyNumber}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowEditPlayerModal(false);
+                      setSelectedPlayerForEdit(null);
+                    }}
+                    className="p-2 transition-all duration-300 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 mb-5 md:grid-cols-2">
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-emerald-400">Player Name *</label>
+                    <div className="relative">
+                      <User className="absolute w-3.5 h-3.5 transform -translate-y-1/2 text-emerald-400 left-3 top-1/2" />
+                      <input
+                        type="text"
+                        value={editPlayerData.name}
+                        onChange={(e) => setEditPlayerData({...editPlayerData, name: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                        placeholder="Enter player name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-blue-400">Playing Role *</label>
+                    <div className="relative">
+                      <Target className="absolute w-3.5 h-3.5 text-blue-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <select
+                        value={editPlayerData.role}
+                        onChange={(e) => setEditPlayerData({...editPlayerData, role: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg appearance-none bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
+                      >
+                        <option value="">Select role</option>
+                        <option value="Batsman">Batsman</option>
+                        <option value="Bowler">Bowler</option>
+                        <option value="All-rounder">All-rounder</option>
+                        <option value="Wicket Keeper">Wicket Keeper</option>
+                        <option value="Captain">Captain</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-purple-400">Age</label>
+                    <div className="relative">
+                      <Star className="absolute w-3.5 h-3.5 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="number"
+                        value={editPlayerData.age}
+                        onChange={(e) => setEditPlayerData({...editPlayerData, age: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+                        placeholder="Player age"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-orange-400">Experience (Years)</label>
+                    <div className="relative">
+                      <Award className="absolute w-3.5 h-3.5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="text"
+                        value={editPlayerData.experience}
+                        onChange={(e) => setEditPlayerData({...editPlayerData, experience: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/20"
+                        placeholder="Years of experience"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-cyan-400">Contact Phone</label>
+                    <div className="relative">
+                      <Phone className="absolute w-3.5 h-3.5 transform -translate-y-1/2 left-3 top-1/2 text-cyan-400" />
+                      <input
+                        type="tel"
+                        value={editPlayerData.contactPhone}
+                        onChange={(e) => setEditPlayerData({...editPlayerData, contactPhone: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-yellow-400">Contact Email</label>
+                    <div className="relative">
+                      <Mail className="absolute w-3.5 h-3.5 text-yellow-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="email"
+                        value={editPlayerData.contactEmail}
+                        onChange={(e) => setEditPlayerData({...editPlayerData, contactEmail: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/20"
+                        placeholder="player@email.com"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex pt-4 space-x-3 border-t border-white/20">
+                  <button
+                    onClick={handleUpdatePlayer}
+                    disabled={loading}
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-emerald-500 via-blue-600 to-purple-600 rounded-lg hover:from-emerald-600 hover:via-blue-700 hover:to-purple-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                        <span>Updating Player...</span>
+                      </div>
+                    ) : (
+                      'Update Player Information'
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditPlayerModal(false);
+                      setSelectedPlayerForEdit(null);
+                    }}
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Team Modal */}
+        {showEditTeamModal && selectedTeamForEdit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-3xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500/20 to-purple-500/20 rounded-xl blur-lg"></div>
+              <div className="relative bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border border-white/20 rounded-xl p-5 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-purple-600">
+                      <Trophy className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Edit Team Information</h2>
+                      <p className="text-sm text-white/70">Update {selectedTeamForEdit.name} details</p>
+                      <div className="mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium inline-block border bg-purple-500/20 text-purple-300 border-purple-500/30">
+                        {selectedTeamForEdit.shortName} • {selectedTeamForEdit.players?.length || 0} Players • Est. {selectedTeamForEdit.established}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowEditTeamModal(false);
+                      setSelectedTeamForEdit(null);
+                    }}
+                    className="p-2 transition-all duration-300 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-4 mb-5 md:grid-cols-2">
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-emerald-400">Team Name *</label>
+                    <input
+                      type="text"
+                      value={editTeamData.name}
+                      onChange={(e) => setEditTeamData({...editTeamData, name: e.target.value})}
+                      className="w-full px-3 py-2.5 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                      placeholder="Enter team name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-blue-400">Team Abbreviation *</label>
+                    <input
+                      type="text"
+                      value={editTeamData.shortName}
+                      onChange={(e) => setEditTeamData({...editTeamData, shortName: e.target.value})}
+                      className="w-full px-3 py-2.5 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
+                      placeholder="e.g., CSPIT"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-purple-400">Team Captain</label>
+                    <div className="relative">
+                      <Crown className="absolute w-3.5 h-3.5 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="text"
+                        value={editTeamData.captain}
+                        onChange={(e) => setEditTeamData({...editTeamData, captain: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+                        placeholder="Captain name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-orange-400">Head Coach</label>
+                    <div className="relative">
+                      <Award className="absolute w-3.5 h-3.5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="text"
+                        value={editTeamData.coach}
+                        onChange={(e) => setEditTeamData({...editTeamData, coach: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/20"
+                        placeholder="Coach name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-cyan-400">Home Ground</label>
+                    <div className="relative">
+                      <MapPin className="absolute w-3.5 h-3.5 transform -translate-y-1/2 left-3 top-1/2 text-cyan-400" />
+                      <input
+                        type="text"
+                        value={editTeamData.homeGround}
+                        onChange={(e) => setEditTeamData({...editTeamData, homeGround: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+                        placeholder="Stadium name"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-yellow-400">Established Year</label>
+                    <div className="relative">
+                      <Calendar className="absolute w-3.5 h-3.5 text-yellow-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="text"
+                        value={editTeamData.established}
+                        onChange={(e) => setEditTeamData({...editTeamData, established: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/20"
+                        placeholder="2025"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-rose-400">Contact Email *</label>
+                    <div className="relative">
+                      <Mail className="absolute w-3.5 h-3.5 transform -translate-y-1/2 text-rose-400 left-3 top-1/2" />
+                      <input
+                        type="email"
+                        value={editTeamData.contactEmail}
+                        onChange={(e) => setEditTeamData({...editTeamData, contactEmail: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-400/20"
+                        placeholder="team@example.com"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-sm font-semibold text-indigo-400">Contact Phone *</label>
+                    <div className="relative">
+                      <Phone className="absolute w-3.5 h-3.5 text-indigo-400 transform -translate-y-1/2 left-3 top-1/2" />
+                      <input
+                        type="tel"
+                        value={editTeamData.contactPhone}
+                        onChange={(e) => setEditTeamData({...editTeamData, contactPhone: e.target.value})}
+                        className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+                        placeholder="+91 98765 43210"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex pt-4 space-x-3 border-t border-white/20">
+                  <button
+                    onClick={handleUpdateTeam}
+                    disabled={loading}
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-emerald-500 via-blue-600 to-purple-600 rounded-lg hover:from-emerald-600 hover:via-blue-700 hover:to-purple-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader className="w-3.5 h-3.5 animate-spin" />
+                        <span>Updating Team...</span>
+                      </div>
+                    ) : (
+                      'Update Team Information'
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditTeamModal(false);
+                      setSelectedTeamForEdit(null);
+                    }}
+                    className="flex-1 py-2.5 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Sub-Admin Modal */}
+        {showEditSubAdminModal && selectedSubAdminForEdit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <div className="relative w-full max-w-4xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-lg"></div>
+              <div className="relative bg-gradient-to-br from-slate-900/98 via-slate-800/98 to-slate-900/98 backdrop-blur-2xl border border-white/20 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+                
+                {/* Enhanced Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <div className="p-2.5 shadow-lg bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 rounded-xl">
+                        <UserCheck className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500/50 to-pink-500/50 rounded-xl blur-sm -z-10"></div>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-transparent bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-400 bg-clip-text">
+                        Edit Cricket Sub-Administrator
+                      </h2>
+                      <p className="text-sm text-white/80 mt-0.5">Update {selectedSubAdminForEdit.name} information and permissions</p>
+                      <div className="flex items-center mt-1.5 space-x-3 text-xs text-slate-400">
+                        <div className="flex items-center space-x-1">
+                          <User className="w-3 h-3" />
+                          <span>ID: {selectedSubAdminForEdit._id || selectedSubAdminForEdit.id}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Shield className="w-3 h-3" />
+                          <span>Status: {selectedSubAdminForEdit.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowEditSubAdminModal(false);
+                      setSelectedSubAdminForEdit(null);
+                    }}
+                    className="p-2 transition-all duration-300 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Form Content */}
+                <div className="grid grid-cols-1 gap-6 mb-6 lg:grid-cols-2">
+                  
+                  {/* Personal Information Section */}
+                  <div className="p-4 border rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-700/50 border-white/10">
+                    <h3 className="flex items-center mb-4 text-lg font-semibold text-cyan-400">
+                      <User className="w-4 h-4 mr-2" />
+                      Personal Information
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block mb-2 text-sm font-semibold text-emerald-400">Full Name *</label>
+                        <div className="relative">
+                          <User className="absolute w-4 h-4 text-emerald-400 transform -translate-y-1/2 left-3 top-1/2" />
+                          <input
+                            type="text"
+                            value={editSubAdminData.name}
+                            onChange={(e) => setEditSubAdminData({...editSubAdminData, name: e.target.value})}
+                            className="w-full py-3 pl-10 pr-4 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                            placeholder="Enter full name"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-semibold text-blue-400">Email Address *</label>
+                        <div className="relative">
+                          <Mail className="absolute w-4 h-4 text-blue-400 transform -translate-y-1/2 left-3 top-1/2" />
+                          <input
+                            type="email"
+                            value={editSubAdminData.email}
+                            onChange={(e) => setEditSubAdminData({...editSubAdminData, email: e.target.value})}
+                            className="w-full py-3 pl-10 pr-4 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
+                            placeholder="admin@example.com"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-semibold text-purple-400">Phone Number</label>
+                        <div className="relative">
+                          <Phone className="absolute w-4 h-4 text-purple-400 transform -translate-y-1/2 left-3 top-1/2" />
+                          <input
+                            type="tel"
+                            value={editSubAdminData.phone}
+                            onChange={(e) => setEditSubAdminData({...editSubAdminData, phone: e.target.value})}
+                            className="w-full py-3 pl-10 pr-4 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block mb-2 text-sm font-semibold text-orange-400">Specialization</label>
+                        <div className="relative">
+                          <Settings className="absolute w-4 h-4 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
+                          <input
+                            type="text"
+                            value={editSubAdminData.specialization}
+                            onChange={(e) => setEditSubAdminData({...editSubAdminData, specialization: e.target.value})}
+                            className="w-full py-3 pl-10 pr-4 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/20"
+                            placeholder="e.g., Team Management, Player Analytics"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Permissions Section */}
+                  <div className="p-4 border rounded-xl bg-gradient-to-br from-slate-800/50 to-slate-700/50 border-white/10">
+                    <h3 className="flex items-center mb-4 text-lg font-semibold text-pink-400">
+                      <Shield className="w-4 h-4 mr-2" />
+                      Access Permissions
+                    </h3>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-600/10 border-green-500/20">
+                        <div className="flex items-center space-x-3">
+                          <Users className="w-4 h-4 text-green-400" />
+                          <div>
+                            <div className="text-sm font-semibold text-green-400">Manage Teams</div>
+                            <div className="text-xs text-green-300/70">Create, edit, and delete cricket teams</div>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editSubAdminData.permissions.manageTeams}
+                            onChange={(e) => setEditSubAdminData({
+                              ...editSubAdminData,
+                              permissions: { ...editSubAdminData.permissions, manageTeams: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="relative w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gradient-to-r from-blue-500/10 to-cyan-600/10 border-blue-500/20">
+                        <div className="flex items-center space-x-3">
+                          <User className="w-4 h-4 text-blue-400" />
+                          <div>
+                            <div className="text-sm font-semibold text-blue-400">Manage Players</div>
+                            <div className="text-xs text-blue-300/70">Add, edit, and remove team players</div>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editSubAdminData.permissions.managePlayers}
+                            onChange={(e) => setEditSubAdminData({
+                              ...editSubAdminData,
+                              permissions: { ...editSubAdminData.permissions, managePlayers: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="relative w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gradient-to-r from-purple-500/10 to-violet-600/10 border-purple-500/20">
+                        <div className="flex items-center space-x-3">
+                          <BarChart3 className="w-4 h-4 text-purple-400" />
+                          <div>
+                            <div className="text-sm font-semibold text-purple-400">View Reports</div>
+                            <div className="text-xs text-purple-300/70">Access team and player statistics</div>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editSubAdminData.permissions.viewReports}
+                            onChange={(e) => setEditSubAdminData({
+                              ...editSubAdminData,
+                              permissions: { ...editSubAdminData.permissions, viewReports: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="relative w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 border rounded-lg bg-gradient-to-r from-orange-500/10 to-red-600/10 border-orange-500/20">
+                        <div className="flex items-center space-x-3">
+                          <Trophy className="w-4 h-4 text-orange-400" />
+                          <div>
+                            <div className="text-sm font-semibold text-orange-400">Manage Matches</div>
+                            <div className="text-xs text-orange-300/70">Schedule and manage cricket matches</div>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editSubAdminData.permissions.manageMatches}
+                            onChange={(e) => setEditSubAdminData({
+                              ...editSubAdminData,
+                              permissions: { ...editSubAdminData.permissions, manageMatches: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="relative w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex pt-6 space-x-4 border-t border-white/20">
+                  <button
+                    onClick={handleUpdateSubAdmin}
+                    disabled={loading}
+                    className="flex-1 py-3 text-sm font-bold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 rounded-lg hover:from-cyan-600 hover:via-purple-700 hover:to-pink-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <Loader className="w-4 h-4 animate-spin" />
+                        <span>Updating Sub-Admin...</span>
+                      </div>
+                    ) : (
+                      'Update Sub-Administrator'
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowEditSubAdminModal(false);
+                      setSelectedSubAdminForEdit(null);
+                    }}
+                    className="flex-1 py-3 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
                   >
                     Cancel
                   </button>
