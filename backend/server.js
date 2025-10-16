@@ -38,6 +38,32 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'backend', time: new Date().toISOString() });
 });
 
+// Development helper: return admin credentials for a given sport
+// WARNING: This endpoint is intended for local development only and will
+// only return plaintext passwords when ALLOW_DEV_CREDENTIALS=true or
+// when NODE_ENV is not 'production'. Do NOT enable in production.
+app.get('/api/credentials', (req, res) => {
+  const sport = (req.query.sport || '').toString().toLowerCase();
+  const allowDev = process.env.ALLOW_DEV_CREDENTIALS === 'true' || process.env.NODE_ENV !== 'production';
+
+  const DEV_CREDENTIALS = {
+    cricket: { email: 'cricket.admin@sports.com', password: 'cricket123' },
+    football: { email: 'football.admin@sports.com', password: 'football123' },
+    basketball: { email: 'basketball.admin@sports.com', password: 'basketball123' },
+    tennis: { email: 'tennis.admin@sports.com', password: 'tennis123' },
+    temp: { email: 'tempadmin@mail.com', password: 'temppass123' }
+  };
+
+  if (!sport || !DEV_CREDENTIALS[sport]) {
+    return res.status(404).json({ success: false, message: 'Route not found' });
+  }
+
+  const result = { email: DEV_CREDENTIALS[sport].email };
+  if (allowDev) result.password = DEV_CREDENTIALS[sport].password;
+
+  return res.json({ success: true, data: result });
+});
+
 // Database diagnostics health check (verifies MongoDB connectivity & basic counts)
 app.get('/health/db', async (req, res) => {
   try {

@@ -1,4 +1,5 @@
 const CricketTeam = require('../models/CricketTeam');
+const CricketMatch = require('../models/CricketMatch');
 const mongoose = require('mongoose');
 
 // Get all cricket teams
@@ -620,5 +621,114 @@ module.exports = {
   deletePlayer,
   uploadTeamLogo,
   uploadPlayerPhoto,
-  getTeamStats
+  getTeamStats,
+  // Matches
+  getAllMatches: async (req, res) => {
+    try {
+      const matches = await CricketMatch.find({ isActive: true })
+        .sort({ date: -1, createdAt: -1 })
+        .populate('teamA', 'name shortName')
+        .populate('teamB', 'name shortName')
+        .select('-__v');
+
+      res.status(200).json({ success: true, count: matches.length, data: matches });
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch matches', error: error.message });
+    }
+  },
+  getMatchById: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ success: false, message: 'Invalid match ID format' });
+      }
+
+      const match = await CricketMatch.findOne({ _id: id, isActive: true })
+        .populate('teamA', 'name shortName players')
+        .populate('teamB', 'name shortName players')
+        .select('-__v');
+
+      if (!match) {
+        return res.status(404).json({ success: false, message: 'Match not found' });
+      }
+
+      res.status(200).json({ success: true, data: match });
+    } catch (error) {
+      console.error('Error fetching match:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch match', error: error.message });
+    }
+  },
+  createMatch: async (req, res) => {
+    try {
+      const { teamA, teamB, date, venue } = req.body;
+
+      if (!teamA || !teamB || !date) {
+        return res.status(400).json({ success: false, message: 'teamA, teamB and date are required' });
+      }
+      if (!mongoose.Types.ObjectId.isValid(teamA) || !mongoose.Types.ObjectId.isValid(teamB)) {
+        return res.status(400).json({ success: false, message: 'Invalid team id(s)' });
+      }
+      if (teamA === teamB) {
+        return res.status(400).json({ success: false, message: 'Teams must be different' });
+      }
+
+      const [tA, tB] = await Promise.all([
+        CricketTeam.findById(teamA).select('_id'),
+        CricketTeam.findById(teamB).select('_id')
+      ]);
+      if (!tA || !tB) return res.status(404).json({ success: false, message: 'One or both teams not found' });
+
+      const createdBy = req.superadmin?.id || undefined;
+      const match = await CricketMatch.create({ teamA, teamB, date: new Date(date), venue: venue?.trim() || '', status: 'scheduled', createdBy });
+
+      const populated = await CricketMatch.findById(match._id)
+        .populate('teamA', 'name shortName')
+        .populate('teamB', 'name shortName');
+
+      res.status(201).json({ success: true, message: 'Match scheduled', data: populated });
+    } catch (error) {
+      console.error('Error creating match:', error);
+      res.status(500).json({ success: false, message: 'Failed to create match', error: error.message });
+    }
+  },
+  updateMatchScore: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { teamA, teamB, overs, status, result } = req.body;
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ success: false, message: 'Invalid match id' });
+      }
+
+      const match = await CricketMatch.findById(id);
+      if (!match || !match.isActive) {
+        return res.status(404).json({ success: false, message: 'Match not found' });
+      }
+
+      // Merge score parts safely
+      if (teamA && typeof teamA === 'object') {
+        match.score.teamA = { ...match.score.teamA, ...teamA };
+      }
+      if (teamB && typeof teamB === 'object') {
+        match.score.teamB = { ...match.score.teamB, ...teamB };
+      }
+      if (overs !== undefined) {
+        match.score.overs = String(overs);
+      }
+      if (status) match.status = status;
+      if (result !== undefined) match.result = result;
+
+      await match.save();
+      const populated = await match
+        .populate('teamA', 'name shortName')
+        .populate('teamB', 'name shortName');
+
+      res.status(200).json({ success: true, message: 'Score updated', data: populated });
+    } catch (error) {
+      console.error('Error updating score:', error);
+      res.status(500).json({ success: false, message: 'Failed to update match score', error: error.message });
+    }
+  }
 };

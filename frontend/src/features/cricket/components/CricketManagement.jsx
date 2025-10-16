@@ -2244,7 +2244,7 @@ const CricketManagement = () => {
                       <div>
                         <label className="block mb-2 text-sm font-semibold text-emerald-400">Full Name *</label>
                         <div className="relative">
-                          <User className="absolute w-4 h-4 text-emerald-400 transform -translate-y-1/2 left-3 top-1/2" />
+                          <User className="absolute w-4 h-4 transform -translate-y-1/2 text-emerald-400 left-3 top-1/2" />
                           <input
                             type="text"
                             value={editSubAdminData.name}
@@ -2403,7 +2403,7 @@ const CricketManagement = () => {
                   <button
                     onClick={handleUpdateSubAdmin}
                     disabled={loading}
-                    className="flex-1 py-3 text-sm font-bold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 rounded-lg hover:from-cyan-600 hover:via-purple-700 hover:to-pink-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 py-3 text-sm font-bold text-white transition-all duration-300 transform rounded-lg shadow-lg bg-gradient-to-r from-cyan-500 via-purple-600 to-pink-600 hover:from-cyan-600 hover:via-purple-700 hover:to-pink-700 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <div className="flex items-center justify-center space-x-2">
@@ -2419,7 +2419,7 @@ const CricketManagement = () => {
                       setShowEditSubAdminModal(false);
                       setSelectedSubAdminForEdit(null);
                     }}
-                    className="flex-1 py-3 text-sm font-bold text-white transition-all duration-300 border bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 rounded-lg hover:from-slate-600 hover:to-slate-500"
+                    className="flex-1 py-3 text-sm font-bold text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-700 to-slate-600 border-white/20 hover:from-slate-600 hover:to-slate-500"
                   >
                     Cancel
                   </button>

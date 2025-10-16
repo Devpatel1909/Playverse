@@ -1,18 +1,103 @@
 /* eslint-disable no-unused-vars */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import superAdminAPI from '../../../services/superAdminAPI';
+import subAdminAPI from '../../../services/subAdminAPI';
 import { motion } from 'framer-motion';
+
+// Static list of sports used by the login page. Module-level to avoid
+// React hook dependency warnings and allow safe reuse across effects.
+const SPORTS_LIST = [
+  { name: 'Cricket', key: 'cricket' },
+  { name: 'Football', key: 'football' },
+  { name: 'Basketball', key: 'basketball' },
+  { name: 'Tennis', key: 'tennis' }
+];
 
 const ProfessionalLoginPage = () => {
   const [loginForm, setLoginForm] = useState({
     email: '',
     password: ''
   });
+  const [sport, setSport] = useState('cricket');
+  const [adminCreds, setAdminCreds] = useState({});
+  const [selectedSportCred, setSelectedSportCred] = useState(null);
+  const [loadingCreds, setLoadingCreds] = useState(false);
+  const [formTouched, setFormTouched] = useState(false);
+  const formTouchedRef = useRef(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  // Professional Icon Components
+  // Fetch credentials for all sports on mount
+  useEffect(() => {
+    let mounted = true;
+    setLoadingCreds(true);
+    const baseApi = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+    const fetchCredForSport = async (sportKey) => {
+      // Prefer the service method if available
+      if (superAdminAPI && typeof superAdminAPI.getAdminCredentials === 'function') {
+        try {
+          const res = await superAdminAPI.getAdminCredentials(sportKey);
+          // service returns { success, data } or { success: true, data: {...} }
+          return res?.data ?? res;
+        } catch (_err) {
+          return null;
+        }
+      }
+
+      // Fallback: call the credentials endpoint directly
+      try {
+        const url = `${baseApi.replace(/\/$/, '')}/api/credentials?sport=${encodeURIComponent(sportKey)}`;
+        const r = await fetch(url, { method: 'GET' });
+        if (!r.ok) return null;
+        const j = await r.json().catch(() => null);
+        return j?.data ?? j;
+      } catch (_e) {
+        return null;
+      }
+    };
+
+    (async () => {
+      try {
+        const results = await Promise.all(
+          SPORTS_LIST.map(async (s) => {
+            const data = await fetchCredForSport(s.key);
+            return { sport: s.key, data };
+          })
+        );
+        if (!mounted) return;
+        const creds = {};
+        results.forEach(({ sport: sp, data }) => { creds[sp] = data; });
+        setAdminCreds(creds);
+      } finally {
+        if (mounted) setLoadingCreds(false);
+      }
+    })();
+
+    return () => { mounted = false; };
+  }, []);
+
+  // Auto-fill email/password when sport changes — but do not overwrite
+  // if the user has already started typing (formTouched).
+  useEffect(() => {
+    if (adminCreds[sport]) {
+      if (!formTouchedRef.current) {
+        setLoginForm({
+          email: adminCreds[sport].email || '',
+          password: adminCreds[sport].password || ''
+        });
+      }
+      setSelectedSportCred(adminCreds[sport] || null);
+    } else {
+      if (!formTouchedRef.current) setLoginForm({ email: '', password: '' });
+      setSelectedSportCred(null);
+    }
+  }, [sport, adminCreds]);
+
+  // Icons + UI components (kept your original look)
   const EyeIcon = ({ className }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -133,7 +218,7 @@ const ProfessionalLoginPage = () => {
       error: "border-red-200/60 bg-red-50/80 backdrop-blur-sm",
       success: "border-emerald-200/60 bg-emerald-50/80 backdrop-blur-sm"
     };
-    
+
     return (
       <div className={`relative w-full rounded-xl border-2 p-4 ${alertStyles[type]} ${className}`}>
         {children}
@@ -146,7 +231,7 @@ const ProfessionalLoginPage = () => {
       error: "text-red-700",
       success: "text-emerald-700"
     };
-    
+
     return (
       <div className={`text-sm font-medium flex items-center ${textStyles[type]} ${className}`}>
         {children}
@@ -194,13 +279,33 @@ const ProfessionalLoginPage = () => {
     }
   };
 
+  // Input change handler - prevents spaces in email (single-word email field)
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    const sanitizedValue = value.replace(/\s/g, '');
+    let newValue = value;
+
+    if (name === 'email') {
+      // Remove any whitespace characters to enforce a single "word" while typing/pasting
+      // (this prevents the user from entering spaces/newlines/tabs)
+      newValue = newValue.replace(/\s+/g, '');
+      // Optionally, we could also prevent multiple '@' characters:
+      const parts = newValue.split('@');
+      if (parts.length > 2) {
+        // keep first '@' and strip additional ones
+        newValue = parts.shift() + '@' + parts.join('');
+      }
+    }
+
     setLoginForm(prev => ({
       ...prev,
-      [name]: sanitizedValue
+      [name]: newValue
     }));
+
+    // Mark that the user has interacted with the form to avoid
+    // auto-fill overwriting their input. Use a ref for immediate
+    // visibility inside effects (avoids setState timing issues).
+    if (!formTouchedRef.current) formTouchedRef.current = true;
+    if (!formTouched) setFormTouched(true);
     if (error) setError('');
     if (success) setSuccess('');
   };
@@ -211,52 +316,136 @@ const ProfessionalLoginPage = () => {
     setSuccess('');
     setLoading(true);
 
-    if (!loginForm.email || !loginForm.password) {
+    // Normalize email input (trim whitespace) at submit-time only.
+    const normalizedEmail = loginForm.email ? loginForm.email.trim() : '';
+    const normalizedPassword = loginForm.password || '';
+
+    if (!normalizedEmail || !normalizedPassword) {
       setError('Please fill in all required fields');
       setLoading(false);
       return;
     }
 
-    if (!loginForm.email.includes('@')) {
-      setError('Please enter a valid email address');
+    if (!normalizedEmail.includes('@')) {
+      setError('Please enter a valid email address (must include @).');
       setLoading(false);
       return;
     }
 
-    if (loginForm.password.length < 6) {
+    if (normalizedPassword.length < 6) {
       setError('Password must be at least 6 characters long');
       setLoading(false);
       return;
     }
 
     try {
+      const adminEmail = normalizedEmail.toLowerCase();
+      const baseApi = import.meta.env.VITE_API_URL || '';
+
+      // 1) Try DB-backed login first
+      if (sport === 'cricket') {
+        const dbLogin = await subAdminAPI.loginCricketSubAdmin(adminEmail, normalizedPassword);
+        if (dbLogin.success && dbLogin.data?.success && dbLogin.data?.data?.subAdmin) {
+          const { subAdmin, token } = dbLogin.data.data;
+          const sessionData = {
+            email: subAdmin.email,
+            role: 'sport_admin',
+            sport: subAdmin.sport,
+            name: subAdmin.name,
+            permissions: subAdmin.permissions || [],
+            loginTime: new Date().toISOString(),
+            sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userAgent: navigator.userAgent,
+            lastActivity: new Date().toISOString()
+          };
+
+          localStorage.setItem('authToken', token);
+          localStorage.setItem('adminUser', JSON.stringify(sessionData));
+          localStorage.setItem('adminToken', `api_admin_${Date.now()}`);
+
+          setSuccess(`Login successful. Welcome ${subAdmin.name}. Redirecting...`);
+          setTimeout(() => { window.location.href = '/admin/cricket'; }, 1200);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2) Fallback to dev credentials fetched from /api/credentials when present and matching
+      if (selectedSportCred && selectedSportCred.email && selectedSportCred.email.toLowerCase() === adminEmail) {
+        if (selectedSportCred.sport && selectedSportCred.sport !== sport && selectedSportCred.sport !== 'all') {
+          setError(`Credentials provided are for the ${selectedSportCred.sport} admin. Please select that sport or use matching credentials.`);
+          setLoading(false);
+          return;
+        }
+        if (normalizedPassword === selectedSportCred.password) {
+          // Optionally fetch sub-admin profile by email (protected route; may fail without token)
+          let subAdminRecord = null;
+          try {
+            const url = `${baseApi.replace(/\/$/, '')}/api/${sport}/sub-admins/email/${encodeURIComponent(adminEmail)}`;
+            const r = await fetch(url, { method: 'GET' });
+            if (r.ok) {
+              const j = await r.json().catch(() => null);
+              if (j && j.success && j.data) subAdminRecord = j.data;
+            }
+          } catch (_e) {
+            // ignore lookup failure; we still proceed with dev creds session
+          }
+
+          const name = subAdminRecord?.name || selectedSportCred.name || 'Sport Administrator';
+          const sportKey = selectedSportCred.sport || sport;
+          const redirectTo = '/admin/cricket';
+
+          const sessionData = {
+            email: adminEmail,
+            role: sportKey === 'all' ? 'system_admin' : 'sport_admin',
+            sport: sportKey,
+            name,
+            permissions: selectedSportCred.permissions || [],
+            loginTime: new Date().toISOString(),
+            sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userAgent: navigator.userAgent,
+            lastActivity: new Date().toISOString()
+          };
+
+          localStorage.setItem('adminToken', `${sportKey}_admin_${Date.now()}`);
+          localStorage.setItem('adminUser', JSON.stringify(sessionData));
+          localStorage.setItem('authToken', `auth_${Date.now()}_${sportKey}`);
+
+          setSuccess(`Welcome back, ${sessionData.name}! Redirecting...`);
+          setTimeout(() => { window.location.href = redirectTo; }, 1200);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Next, check hardcoded SPORT_ADMINS map (dev fallback)
       const SPORT_ADMINS = {
         'cricket.admin@sports.com': {
           password: 'cricket123',
           sport: 'cricket',
           name: 'Cricket Administrator',
-          redirectTo: '/cricket-scorer-overview',
+          redirectTo: '/admin/cricket',
           permissions: ['cricket_management', 'player_management', 'match_scoring']
         },
         'football.admin@sports.com': {
           password: 'football123',
           sport: 'football',
           name: 'Football Administrator',
-          redirectTo: '/football-management',
+          redirectTo: '/admin/football',
           permissions: ['football_management', 'team_management', 'tournament_management']
         },
         'basketball.admin@sports.com': {
           password: 'basketball123',
           sport: 'basketball',
           name: 'Basketball Administrator',
-          redirectTo: '/admin/overview',
+          redirectTo: '/admin/basketball',
           permissions: ['basketball_management', 'league_management']
         },
         'tennis.admin@sports.com': {
           password: 'tennis123',
           sport: 'tennis',
           name: 'Tennis Administrator',
-          redirectTo: '/admin/overview',
+          redirectTo: '/admin/tennis',
           permissions: ['tennis_management', 'tournament_management']
         },
         'tempadmin@mail.com': {
@@ -282,75 +471,45 @@ const ProfessionalLoginPage = () => {
         }
       };
 
-      const adminEmail = loginForm.email.trim().toLowerCase();
       const adminData = SPORT_ADMINS[adminEmail];
-      
-      if (adminData && loginForm.password === adminData.password) {
-        setSuccess(`Welcome back, ${adminData.name}! Redirecting...`);
-        
-        const sessionData = {
-          email: adminEmail,
-          role: adminData.sport === 'all' ? 'system_admin' : 'sport_admin',
-          sport: adminData.sport,
-          name: adminData.name,
-          permissions: adminData.permissions,
-          loginTime: '2025-08-24 12:15:12',
-          sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          userAgent: navigator.userAgent,
-          lastActivity: '2025-08-24 12:15:12'
-        };
-        
-        localStorage.setItem('adminToken', `${adminData.sport}_admin_${Date.now()}`);
-        localStorage.setItem('adminUser', JSON.stringify(sessionData));
-        localStorage.setItem('authToken', `auth_${Date.now()}_${adminData.sport}`);
-        
-        setTimeout(() => {
-          window.location.href = adminData.redirectTo;
-        }, 1500);
-        
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/auth/admin-login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: JSON.stringify({
-            email: loginForm.email,
-            password: loginForm.password,
-            loginTime: '2025-08-24 12:15:12',
-            userAgent: navigator.userAgent
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.success && data.user) {
-            setSuccess(`Authentication successful! Welcome ${data.user.name}. Redirecting...`);
-            
-            localStorage.setItem('authToken', data.token);
-            localStorage.setItem('adminUser', JSON.stringify(data.user));
-            localStorage.setItem('adminToken', `api_admin_${Date.now()}`);
-            
-            setTimeout(() => {
-              window.location.href = data.redirectTo || '/admin/overview';
-            }, 1500);
-            
-            setLoading(false);
-            return;
-          }
+      if (adminData) {
+        if (adminData.sport !== sport && adminData.sport !== 'all') {
+          setError(`The entered credentials belong to the ${adminData.sport} admin. Please select that sport to login.`);
+          setLoading(false);
+          return;
         }
-        
-        throw new Error('Authentication failed');
-        
-      } catch (apiError) {
-        setError('Invalid email or password. Please verify your credentials and try again.');
+
+        if (normalizedPassword === adminData.password) {
+          const sessionData = {
+            email: adminEmail,
+            role: adminData.sport === 'all' ? 'system_admin' : 'sport_admin',
+            sport: adminData.sport,
+            name: adminData.name,
+            permissions: adminData.permissions,
+            loginTime: new Date().toISOString(),
+            sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userAgent: navigator.userAgent,
+            lastActivity: new Date().toISOString()
+          };
+
+          localStorage.setItem('adminToken', `${adminData.sport}_admin_${Date.now()}`);
+          localStorage.setItem('adminUser', JSON.stringify(sessionData));
+          localStorage.setItem('authToken', `auth_${Date.now()}_${adminData.sport}`);
+
+          setSuccess(`Welcome back, ${sessionData.name}! Redirecting...`);
+          setTimeout(() => { window.location.href = '/admin/cricket'; }, 1200);
+
+          setLoading(false);
+          return;
+        } else {
+          setError('Invalid password for the selected sport.');
+          setLoading(false);
+          return;
+        }
       }
+
+      // If all failed up to here, show generic message
+      setError('Invalid credentials for the selected sport.');
 
     } catch (error) {
       console.error('Login error:', error);
@@ -397,7 +556,7 @@ const ProfessionalLoginPage = () => {
             background: 'linear-gradient(135deg, #059669, #047857)'
           }}
         />
-        
+
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 opacity-20" />
         <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-teal-500 to-emerald-500 opacity-20" />
       </div>
@@ -410,10 +569,10 @@ const ProfessionalLoginPage = () => {
         className="relative z-10 flex items-center justify-center w-full h-full px-4 py-8"
       >
         <div className="grid items-center w-full max-w-6xl grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16">
-          
+
           {/* Left Side: Logo, Title, Subtitle */}
           <motion.div variants={itemVariants} className="flex flex-col items-center justify-center text-center lg:items-start lg:text-left">
-            <motion.div 
+            <motion.div
               className="relative inline-block mb-8"
               whileHover={{ scale: 1.05, rotate: 5 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -441,8 +600,8 @@ const ProfessionalLoginPage = () => {
                 }}
               />
             </motion.div>
-            
-            <motion.h1 
+
+            <motion.h1
               className="mb-4 text-4xl font-black lg:text-5xl xl:text-6xl"
               style={{
                 background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%)',
@@ -453,11 +612,11 @@ const ProfessionalLoginPage = () => {
             >
               Sports Admin Hub
             </motion.h1>
-            
+
             <motion.p className="max-w-md mb-8 text-lg font-medium text-slate-300">
               Professional Match Scheduling & Management Platform
             </motion.p>
-            
+
             <div className="flex flex-wrap items-center justify-center gap-4 lg:justify-start">
               <Badge className="border-emerald-400/40 bg-emerald-500/10 text-emerald-300">
                 <ShieldIcon className="w-4 h-4 mr-2" />
@@ -479,7 +638,7 @@ const ProfessionalLoginPage = () => {
                   Secure Access Portal
                 </CardTitle>
               </CardHeader>
-              
+
               <CardContent className="w-full pt-8">
                 {/* Alert Messages */}
                 {error && (
@@ -512,93 +671,128 @@ const ProfessionalLoginPage = () => {
                   </motion.div>
                 )}
 
-                {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  >
-                    <label className="block mb-3 text-sm font-bold text-slate-700">
-                      System Email Address
-                    </label>
-                    <div className="relative">
-                      <MailIcon className="absolute w-5 h-5 transform -translate-y-1/2 left-4 top-1/2 text-slate-400" />
-                      <Input
-                        type="email"
-                        name="email"
-                        value={loginForm.email}
-                        onChange={handleInputChange}
-                        placeholder="Enter your system email"
-                        className="pl-12 text-base font-medium h-14"
-                        required
-                        disabled={loading}
-                      />
-                    </div>
-                  </motion.div>
+                {/* Sport Selection & Login Form */}
+               {/* Sport Selection & Login Form */}
+<form onSubmit={handleSubmit} className="space-y-6">
+  {/* Sport Selection */}
+  <motion.div
+    whileHover={{ y: -2 }}
+    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+  >
+    <label className="block mb-3 text-sm font-bold text-slate-700">
+      Select Sport
+    </label>
+    <select
+      className="w-full h-12 px-4 py-2 mb-2 text-base font-medium border-2 rounded-xl border-slate-200/60 bg-white/95 text-slate-800 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 focus:outline-none"
+      value={sport}
+      onChange={e => setSport(e.target.value)}
+      disabled={loadingCreds || loading}
+      required
+    >
+      {SPORTS_LIST.map(s => (
+        <option key={s.key} value={s.key}>{s.name}</option>
+      ))}
+    </select>
+    {loadingCreds && (
+      <span className="text-xs text-slate-400">
+        Loading credentials...
+      </span>
+    )}
+  </motion.div>
 
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  >
-                    <label className="block mb-3 text-sm font-bold text-slate-700">
-                      System Password
-                    </label>
-                    <div className="relative">
-                      <LockIcon className="absolute w-5 h-5 transform -translate-y-1/2 left-4 top-1/2 text-slate-400" />
-                      <Input
-                        type={showPassword ? 'text' : 'password'}
-                        name="password"
-                        value={loginForm.password}
-                        onChange={handleInputChange}
-                        placeholder="Enter your secure password"
-                        className="pl-12 pr-12 text-base font-medium h-14"
-                        required
-                        disabled={loading}
-                      />
-                      <motion.button
-                        type="button"
-                        onClick={togglePasswordVisibility}
-                        className="absolute transition-colors duration-200 transform -translate-y-1/2 right-4 top-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
-                        disabled={loading}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                      </motion.button>
-                    </div>
-                  </motion.div>
+  {/* Email Input */}
+  <motion.div
+    whileHover={{ y: -2 }}
+    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+  >
+    <label className="block mb-3 text-sm font-bold text-slate-700">
+      System Email Address
+    </label>
+    <div className="relative">
+      <MailIcon className="absolute w-5 h-5 transform -translate-y-1/2 left-4 top-1/2 text-slate-400" />
+      <input
+        type="text"
+        name="email"
+        value={loginForm.email}
+        onChange={handleInputChange}
+        placeholder="Enter your system email"
+        className="w-full pl-12 text-base font-medium bg-white border h-14 rounded-xl border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        required
+        disabled={loading}
+      />
+    </div>
+  </motion.div>
 
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                  >
-                    <Button
-                      type="submit"
-                      disabled={loading || !loginForm.email || !loginForm.password}
-                      className="w-full text-base font-bold transition-shadow duration-300 shadow-lg h-14 rounded-xl hover:shadow-xl"
-                    >
-                      {loading ? (
-                        <div className="flex items-center justify-center">
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="w-6 h-6 mr-3 border-2 border-white rounded-full border-t-transparent"
-                          />
-                          Authenticating Access...
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center">
-                          <ShieldIcon className="w-5 h-5 mr-3" />
-                          Access Admin Dashboard
-                        </div>
-                      )}
-                    </Button>
-                  </motion.div>
-                </form>
+  {/* Password Input */}
+  <motion.div
+    whileHover={{ y: -2 }}
+    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+  >
+    <label className="block mb-3 text-sm font-bold text-slate-700">
+      System Password
+    </label>
+    <div className="relative">
+      <LockIcon className="absolute w-5 h-5 transform -translate-y-1/2 left-4 top-1/2 text-slate-400" />
+      <input
+        type={showPassword ? "text" : "password"}
+        name="password"
+        value={loginForm.password}
+        onChange={handleInputChange}
+        placeholder="Enter your secure password"
+        className="w-full pl-12 pr-12 text-base font-medium bg-white border h-14 rounded-xl border-slate-300 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+        required
+        disabled={loading}
+      />
+      <motion.button
+        type="button"
+        onClick={togglePasswordVisibility}
+        className="absolute transition-colors duration-200 transform -translate-y-1/2 right-4 top-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+        disabled={loading}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        {showPassword ? (
+          <EyeOffIcon className="w-5 h-5" />
+        ) : (
+          <EyeIcon className="w-5 h-5" />
+        )}
+      </motion.button>
+    </div>
+  </motion.div>
+
+  {/* Submit Button */}
+  <motion.div
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    transition={{ type: "spring", stiffness: 400, damping: 25 }}
+  >
+    <Button
+      type="submit"
+      disabled={loading || !loginForm.email || !loginForm.password}
+      className="w-full text-base font-bold transition-shadow duration-300 shadow-lg h-14 rounded-xl hover:shadow-xl"
+    >
+      {loading ? (
+        <div className="flex items-center justify-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-6 h-6 mr-3 border-2 border-white rounded-full border-t-transparent"
+          />
+          Authenticating Access...
+        </div>
+      ) : (
+        <div className="flex items-center justify-center">
+          <ShieldIcon className="w-5 h-5 mr-3" />
+          Access Admin Dashboard
+        </div>
+      )}
+    </Button>
+  </motion.div>
+</form>
+
 
                 {/* Support Section */}
-                <motion.div 
+                <motion.div
                   className="mt-8 text-center"
                   variants={itemVariants}
                 >
@@ -612,7 +806,7 @@ const ProfessionalLoginPage = () => {
                     <SupportIcon className="w-4 h-4 mr-2" />
                     Need Help? Contact Support Center
                   </motion.button>
-                  
+
                   <div className="pt-4 mt-4 text-center border-t border-slate-200/30">
                     <div className="text-xs text-slate-500">
                       <span className="font-semibold">Current User:</span> Dsp2810<br />

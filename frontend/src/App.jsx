@@ -1,21 +1,22 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "./features/admin/pages/AdminLogin.jsx";
-import AdminSportsOverview from "./features/admin/pages/AdminSportsOverview.jsx";
+import AdminSportsOverview from "./features/admin/pages/CricketAdminPage.jsx";
 import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.jsx";
 import SuperAdminSportsOverview from "./features/SuperAdmin/Pages/SuperAdminSportsOverview.jsx";
 import CricketManagement from "./features/cricket/components/CricketManagement.jsx";
 import CricketScorerOverview from "./features/cricket/components/CricketScorerOverview.jsx";
-import FootballManagement from "./features/football/components/FootballManagement.jsx";
-import BasketballManagement from "./features/basketball/components/BasketballManagement.jsx";
-import BadmintonManagement from "./features/badminton/components/BadmintonManagement.jsx";
-import VolleyballManagement from "./features/volleyball/components/VolleyballManagement.jsx";
-import TennisManagement from "./features/tennis/components/TennisManagement.jsx";
-import TableTennisManagement from "./features/tabletennis/components/TableTennisManagement.jsx";
-import HockeyManagement from "./features/hockey/components/HockeyManagement.jsx";
+import ScoreUpdatePage from "./features/cricket/scoring/ScoreUpdatePage.jsx";
+import FootballManagement from "./features/football/components/FootballManagement.jsx"; // <-- Add this import
+import FootballAdminPage from "./features/admin/pages/FootballAdminPage.jsx";
+import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.jsx";
+import TennisAdminPage from "./features/admin/pages/TennisAdminPage.jsx";
 import APIConnectionTest from "./components/APIConnectionTest.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
 import SuperAdminDebug from "./components/SuperAdminDebug.jsx";
+// import PublicScoreView from "./features/people/pages/PublicScoreView.jsx";
+// import HomePage from "./features/people/pages/HomePage.jsx";
+// import SchedulePage from "./features/people/pages/SchedulePage.jsx";
 
 function App() {
   return (
@@ -44,13 +45,25 @@ function App() {
         </AdminProtectedRoute>
       } />
 
+      {/* Cricket Admin Page (login redirects here) */}
+      <Route path="/admin/cricket" element={
+        <AdminProtectedRoute requiredSport="cricket">
+          <AdminSportsOverview />
+        </AdminProtectedRoute>
+      } />
+
+      {/* Cricket Live Scoring */}
+      <Route path="/admin/cricket/score/:matchId" element={
+        <AdminProtectedRoute requiredSport="cricket">
+          <ScoreUpdatePage />
+        </AdminProtectedRoute>
+      } />
+
+   
+
+
       {/* Super Admin - now with particle text effect */}
       <Route path="/superadmin/login" element={<SuperAdminEntry />} />
-      <Route path="/superadmin" element={
-        <ProtectedRoute>
-          <SuperAdminSportsOverview />
-        </ProtectedRoute>
-      } />
       <Route path="/superadmin/sports" element={
         <ProtectedRoute>
           <SuperAdminSportsOverview />
@@ -80,42 +93,35 @@ function App() {
           <FootballManagement />
         </ProtectedRoute>
       } />
+      <Route path="/admin/football" element={
+        <AdminProtectedRoute requiredSport="football">
+          <FootballAdminPage />
+        </AdminProtectedRoute>
+      } />
 
+      <Route path="/admin/basketball" element={
+        <AdminProtectedRoute requiredSport="basketball">
+          <BasketballAdminPage />
+        </AdminProtectedRoute>
+      } />
+
+      <Route path="/admin/tennis" element={
+        <AdminProtectedRoute requiredSport="tennis">
+          <TennisAdminPage />
+        </AdminProtectedRoute>
+      } />
+  {/* Placeholder for public pages */}
+      {/* Additional sport management routes
       <Route path="/basketball-management" element={
-        <ProtectedRoute>
-          <BasketballManagement />
-        </ProtectedRoute>
+        <AdminProtectedRoute requiredSport="basketball">
+          <AdminSportsOverview />
+        </AdminProtectedRoute>
       } />
-
-      <Route path="/badminton-management" element={
-        <ProtectedRoute>
-          <BadmintonManagement />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/volleyball-management" element={
-        <ProtectedRoute>
-          <VolleyballManagement />
-        </ProtectedRoute>
-      } />
-
       <Route path="/tennis-management" element={
-        <ProtectedRoute>
-          <TennisManagement />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/tabletennis-management" element={
-        <ProtectedRoute>
-          <TableTennisManagement />
-        </ProtectedRoute>
-      } />
-
-      <Route path="/hockey-management" element={
-        <ProtectedRoute>
-          <HockeyManagement />
-        </ProtectedRoute>
-      } />
+        <AdminProtectedRoute requiredSport="tennis">
+          <AdminSportsOverview />
+        </AdminProtectedRoute>
+      } /> */}
 
       {/* 404 */}
       <Route path="*" element={<div className="flex items-center justify-center min-h-screen text-white bg-slate-900">404 - Not Found</div>} />

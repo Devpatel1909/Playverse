@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 // services/subAdminAPI.js
 class SubAdminAPIService {
   constructor() {
@@ -35,6 +34,18 @@ class SubAdminAPIService {
     } catch (error) {
       console.error('API Error:', error);
       return { success: false, error: error.message, status: 500 };
+    }
+  }
+
+  // Login cricket sub-admin (DB-backed)
+  async loginCricketSubAdmin(email, password) {
+    try {
+      return await this.apiCall('/cricket/sub-admins/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      });
+    } catch (error) {
+      return { success: false, error: error.message };
     }
   }
 

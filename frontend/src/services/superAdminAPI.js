@@ -345,6 +345,27 @@ class SuperAdminAPIService {
     }
   }
 
+  // Fetch admin credentials for a given sport (used by admin login helpers)
+  async getAdminCredentials(sportKey) {
+    try {
+      const url = `${API_BASE_URL}/credentials?sport=${encodeURIComponent(sportKey)}`;
+      if (import.meta.env.DEV) console.debug('[SuperAdminAPI] GET', url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      // Try to parse JSON even if not ok for friendly error
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.message || `Failed to fetch credentials (${response.status})`);
+      }
+      return { success: true, data: data?.data || data };
+    } catch (error) {
+      console.error('Failed to fetch admin credentials:', error);
+      throw error;
+    }
+  }
+
   // Utility Methods
   isAuthenticated() {
     const token = this.getAuthToken();

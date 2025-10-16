@@ -11,7 +11,11 @@ const {
   deletePlayer,
   uploadTeamLogo,
   uploadPlayerPhoto,
-  getTeamStats
+  getTeamStats,
+  getAllMatches,
+  getMatchById,
+  createMatch,
+  updateMatchScore
 } = require('../controllers/cricketController');
 
 // Import auth middleware
@@ -35,5 +39,11 @@ router.delete('/teams/:teamId/players/:playerId', optionalAuthMiddleware, delete
 
 // Player photo routes
 router.put('/teams/:teamId/players/:playerId/photo', optionalAuthMiddleware, uploadPlayerPhoto);
+
+// Match routes (public read, auth optional for write)
+router.get('/matches', getAllMatches);
+router.get('/matches/:id', getMatchById);
+router.post('/matches', optionalAuthMiddleware, createMatch);
+router.put('/matches/:id/score', optionalAuthMiddleware, updateMatchScore);
 
 module.exports = router;

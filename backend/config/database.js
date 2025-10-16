@@ -16,8 +16,7 @@ const connectDB = async () => {
       maxPoolSize: 10, // Maximum number of connections
       minPoolSize: 5, // Minimum number of connections
       maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-      bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0 // Disable mongoose buffering
+      bufferCommands: false // Disable mongoose buffering
     };
 
     await mongoose.connect(MONGO_URI, options);

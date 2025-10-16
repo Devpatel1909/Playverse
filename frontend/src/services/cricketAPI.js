@@ -5,14 +5,22 @@ const API_BASE_URL = /\/api\/?$/.test(RAW_API_BASE)
   ? RAW_API_BASE.replace(/\/$/, '')
   : RAW_API_BASE.replace(/\/$/, '') + '/api';
 
+console.log('[CricketAPI] Configuration:', {
+  RAW_API_BASE,
+  API_BASE_URL,
+  VITE_API_URL: import.meta.env.VITE_API_URL
+});
+
 class CricketAPIService {
   constructor() {
     this.baseURL = `${API_BASE_URL}/cricket`;
+    console.log('[CricketAPI] Base URL:', this.baseURL);
   }
 
   // Helper method to get auth token
   getAuthToken() {
-    return localStorage.getItem('superadmin_token');
+    // Try both token keys - authToken (used by admin login) and superadmin_token (used by superadmin)
+    return localStorage.getItem('authToken') || localStorage.getItem('superadmin_token');
   }
 
   // Helper method to create headers
@@ -26,15 +34,35 @@ class CricketAPIService {
       headers.Authorization = `Bearer ${token}`;
     }
 
+    console.log('[CricketAPI] Headers:', { 
+      ...headers, 
+      Authorization: token ? `Bearer ${token.substring(0, 20)}...` : 'No token' 
+    });
+
     return headers;
   }
 
   // Helper method to handle API responses
   async handleResponse(response) {
-    const data = await response.json();
+    let data;
+    const contentType = response.headers.get('content-type');
+    
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // If response is not JSON, get text content
+      const text = await response.text();
+      console.error('[CricketAPI] Non-JSON response:', { status: response.status, text });
+      data = { message: text || 'Unknown error' };
+    }
     
     if (!response.ok) {
-      throw new Error(data.message || 'API request failed');
+      console.error('[CricketAPI] API Error:', { 
+        status: response.status, 
+        statusText: response.statusText,
+        data 
+      });
+      throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
     }
     
     return data;
@@ -194,6 +222,143 @@ class CricketAPIService {
     }
   }
 
+  // Match Management APIs
+  async getAllMatches() {
+    try {
+      console.log('[CricketAPI] Fetching all matches...');
+      const response = await fetch(`${this.baseURL}/matches`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      const result = await this.handleResponse(response);
+      console.log('[CricketAPI] Matches fetched successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to fetch matches:', error);
+      throw error;
+    }
+  }
+
+  async createMatch(matchData) {
+    try {
+      console.log('[CricketAPI] Creating match with data:', matchData);
+      
+      // Validate match data before sending
+      this.validateMatchData(matchData);
+      
+      // Ensure required fields are present
+      const payload = {
+        teamA: matchData.teamA,
+        teamB: matchData.teamB,
+        date: matchData.date,
+        venue: matchData.venue,
+        matchType: matchData.matchType || 'T20',
+        overs: matchData.overs || 20,
+        status: 'scheduled',
+        ...matchData // Include any additional fields
+      };
+      
+      const url = `${this.baseURL}/matches`;
+      const headers = this.getHeaders();
+      
+      console.log('[CricketAPI] POST Request:', {
+        url,
+        headers,
+        payload
+      });
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      console.log('[CricketAPI] Response status:', response.status);
+      console.log('[CricketAPI] Response headers:', [...response.headers.entries()]);
+      
+      // Log response text before parsing to see what backend returns
+      const responseText = await response.text();
+      console.log('[CricketAPI] Raw response:', responseText);
+      
+      // Create a new Response object since we already consumed the original
+      const newResponse = new Response(responseText, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers
+      });
+      
+      const result = await this.handleResponse(newResponse);
+      console.log('[CricketAPI] Match created successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to create match:', error);
+      throw error;
+    }
+  }
+
+  async getMatchById(matchId) {
+    try {
+      console.log('[CricketAPI] Fetching match by ID:', matchId);
+      const response = await fetch(`${this.baseURL}/matches/${matchId}`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+      const result = await this.handleResponse(response);
+      console.log('[CricketAPI] Match fetched successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to fetch match:', error);
+      throw error;
+    }
+  }
+
+  async updateMatch(matchId, updateData) {
+    try {
+      console.log('[CricketAPI] Updating match:', matchId, updateData);
+      const response = await fetch(`${this.baseURL}/matches/${matchId}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(updateData)
+      });
+      const result = await this.handleResponse(response);
+      console.log('[CricketAPI] Match updated successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to update match:', error);
+      throw error;
+    }
+  }
+
+  async deleteMatch(matchId) {
+    try {
+      console.log('[CricketAPI] Deleting match:', matchId);
+      const response = await fetch(`${this.baseURL}/matches/${matchId}`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+      const result = await this.handleResponse(response);
+      console.log('[CricketAPI] Match deleted successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to delete match:', error);
+      throw error;
+    }
+  }
+
+  async updateMatchScore(matchId, scoreData) {
+    try {
+      const response = await fetch(`${this.baseURL}/matches/${matchId}/score`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(scoreData)
+      });
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('Failed to update match score:', error);
+      throw error;
+    }
+  }
+
   // Utility method to convert file to base64
   fileToBase64(file) {
     return new Promise((resolve, reject) => {
@@ -261,6 +426,40 @@ class CricketAPIService {
       throw new Error('Subadmin username & password required');
     }
     if (data.password.length < 6) throw new Error('Password min 6 chars');
+    return true;
+  }
+
+  validateMatchData(matchData) {
+    const requiredFields = ['teamA', 'teamB', 'date', 'venue'];
+    const missingFields = requiredFields.filter(field => !matchData[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
+
+    // Date validation
+    const matchDate = new Date(matchData.date);
+    if (isNaN(matchDate.getTime())) {
+      throw new Error('Invalid date format');
+    }
+
+    // Check if match date is in the past
+    if (matchDate < new Date().setHours(0, 0, 0, 0)) {
+      throw new Error('Match date cannot be in the past');
+    }
+
+    // Team validation
+    if (matchData.teamA === matchData.teamB) {
+      throw new Error('Teams cannot be the same');
+    }
+
+    // Overs validation for limited overs matches
+    if (matchData.matchType && matchData.matchType !== 'Test') {
+      if (!matchData.overs || matchData.overs < 1 || matchData.overs > 50) {
+        throw new Error('Overs must be between 1 and 50 for limited overs matches');
+      }
+    }
+
     return true;
   }
 
