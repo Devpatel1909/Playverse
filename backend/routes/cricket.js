@@ -15,6 +15,8 @@ const {
   getAllMatches,
   getMatchById,
   createMatch,
+  updateMatch,
+  deleteMatch,
   updateMatchScore
 } = require('../controllers/cricketController');
 
@@ -44,6 +46,8 @@ router.put('/teams/:teamId/players/:playerId/photo', optionalAuthMiddleware, upl
 router.get('/matches', getAllMatches);
 router.get('/matches/:id', getMatchById);
 router.post('/matches', optionalAuthMiddleware, createMatch);
+router.put('/matches/:id', optionalAuthMiddleware, updateMatch);
+router.delete('/matches/:id', optionalAuthMiddleware, deleteMatch);
 router.put('/matches/:id/score', optionalAuthMiddleware, updateMatchScore);
 
 module.exports = router;

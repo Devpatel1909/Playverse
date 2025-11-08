@@ -4,8 +4,8 @@ import AdminSportsOverview from "./features/admin/pages/CricketAdminPage.jsx";
 import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.jsx";
 import SuperAdminSportsOverview from "./features/SuperAdmin/Pages/SuperAdminSportsOverview.jsx";
 import CricketManagement from "./features/cricket/components/CricketManagement.jsx";
-import CricketScorerOverview from "./features/cricket/components/CricketScorerOverview.jsx";
-import ScoreUpdatePage from "./features/cricket/scoring/ScoreUpdatePage.jsx";
+import CricketScoringWrapper from "./features/cricket/components/CricketScoringWrapper.jsx";
+
 import FootballManagement from "./features/football/components/FootballManagement.jsx"; // <-- Add this import
 import FootballAdminPage from "./features/admin/pages/FootballAdminPage.jsx";
 import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.jsx";
@@ -55,7 +55,7 @@ function App() {
       {/* Cricket Live Scoring */}
       <Route path="/admin/cricket/score/:matchId" element={
         <AdminProtectedRoute requiredSport="cricket">
-          <ScoreUpdatePage />
+          <CricketScoringWrapper />
         </AdminProtectedRoute>
       } />
 
@@ -82,12 +82,7 @@ function App() {
         </AdminProtectedRoute>
       } />
       
-      <Route path="/cricket-scorer-overview" element={
-        <AdminProtectedRoute requiredSport="cricket">
-          <CricketScorerOverview />
-        </AdminProtectedRoute>
-      } />
-
+ 
       <Route path="/football-management" element={
         <ProtectedRoute>
           <FootballManagement />

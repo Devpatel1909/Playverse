@@ -65,23 +65,31 @@ const optionalAuthMiddleware = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (token) {
-  const jwtSecret = process.env.JWT_SECRET || 'dev_secret';
-  const decoded = jwt.verify(token, jwtSecret);
-      const superadmin = await SuperAdmin.findById(decoded.id);
+      const jwtSecret = process.env.JWT_SECRET || 'dev_secret';
       
-      if (superadmin) {
-        req.superadmin = {
-          id: superadmin._id,
-          superadminName: superadmin.superadminName,
-          email: superadmin.email
-        };
+      try {
+        const decoded = jwt.verify(token, jwtSecret);
+        const superadmin = await SuperAdmin.findById(decoded.id);
+        
+        if (superadmin) {
+          req.superadmin = {
+            id: superadmin._id,
+            superadminName: superadmin.superadminName,
+            email: superadmin.email
+          };
+        }
+      } catch (jwtError) {
+        // Silently ignore JWT errors for optional auth
+        // Only log in development mode if needed
+        if (process.env.NODE_ENV === 'development' && process.env.DEBUG_AUTH === 'true') {
+          console.debug('Optional auth - invalid token:', jwtError.message);
+        }
       }
     }
 
     next();
   } catch (error) {
-    // Continue without authentication if token is invalid
-    console.warn('Optional auth failed:', error.message);
+    // Continue without authentication if any error occurs
     next();
   }
 };

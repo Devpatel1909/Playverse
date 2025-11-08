@@ -33,6 +33,8 @@ const CricketAdminPage = () => {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showEditMatchModal, setShowEditMatchModal] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   // Dashboard filters
   const [teamSearch, setTeamSearch] = useState('');
@@ -156,6 +158,64 @@ const CricketAdminPage = () => {
     }
   };
 
+  const handleUpdateMatch = async (matchId, formData) => {
+    try {
+      const payload = { 
+        teamA: formData.teamA, 
+        teamB: formData.teamB, 
+        date: formData.date, 
+        venue: formData.venue,
+        matchType: formData.matchType || 'T20',
+        overs: formData.overs || 20
+      };
+      
+      console.log('Updating match with payload:', payload);
+      const res = await cricketAPIService.updateMatch(matchId, payload);
+      console.log('Match updated successfully:', res);
+      
+      // Reload matches from database
+      await reloadMatches();
+      
+      setShowEditMatchModal(false);
+      setSelectedMatch(null);
+      
+      alert('Match updated successfully!');
+    } catch (err) {
+      console.error('Failed to update match:', err);
+      alert(err.message || 'Failed to update match');
+    }
+  };
+
+  const handleDeleteMatch = async (matchId) => {
+    if (!confirm('Are you sure you want to delete this match? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      console.log('Deleting match:', matchId);
+      await cricketAPIService.deleteMatch(matchId);
+      console.log('Match deleted successfully');
+      
+      // Reload matches from database
+      await reloadMatches();
+      
+      alert('Match deleted successfully!');
+    } catch (err) {
+      console.error('Failed to delete match:', err);
+      alert(err.message || 'Failed to delete match');
+    }
+  };
+
+  const openEditMatchModal = (match) => {
+    setSelectedMatch(match);
+    setShowEditMatchModal(true);
+  };
+
+  const closeEditMatchModal = () => {
+    setShowEditMatchModal(false);
+    setSelectedMatch(null);
+  };
+
   // Derived collections for filters
   const allPlayers = teams.flatMap(t => (t.players || []).map(p => ({ ...p, teamName: t.name, teamId: t._id })));
   const filteredTeams = teams.filter(t => {
@@ -180,11 +240,11 @@ const CricketAdminPage = () => {
   });
 
   return (
-    <div className="min-h-screen w-screen relative overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #0a0f1c 0%, #1a1f3a 25%, #2d3748 50%, #4a5568 75%, #667eea 100%)' }}>
+    <div className="relative w-screen min-h-screen overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #0a0f1c 0%, #1a1f3a 25%, #2d3748 50%, #4a5568 75%, #667eea 100%)' }}>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute w-96 h-96 rounded-full opacity-20"
+          className="absolute rounded-full w-96 h-96 opacity-20"
           style={{ background: 'radial-gradient(circle, #10b981, transparent)' }}
           animate={{
             x: [0, 100, 0],
@@ -219,13 +279,13 @@ const CricketAdminPage = () => {
       </div>
 
       <motion.header 
-        className="border-b backdrop-blur-xl border-white/20 sticky top-0 z-40 shadow-2xl" 
+        className="sticky top-0 z-40 border-b shadow-2xl backdrop-blur-xl border-white/20" 
         style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 50%, rgba(245, 158, 11, 0.1) 100%)' }}
         initial={{ opacity: 0, y: -20 }} 
         animate={{ opacity: 1, y: 0 }} 
         transition={{ duration: 0.8, ease: "easeOut" }}
       >
-        <div className="w-full flex items-center justify-between px-6 py-4">
+        <div className="flex items-center justify-between w-full px-6 py-4">
           <motion.div 
             className="flex items-center space-x-4"
             initial={{ opacity: 0, x: -50 }}
@@ -233,7 +293,7 @@ const CricketAdminPage = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
           >
             <motion.div 
-              className="flex items-center justify-center w-14 h-14 text-white rounded-2xl shadow-2xl" 
+              className="flex items-center justify-center text-white shadow-2xl w-14 h-14 rounded-2xl" 
               style={{ background: 'linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #f59e0b 100%)' }}
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
@@ -251,7 +311,7 @@ const CricketAdminPage = () => {
             </motion.div>
             <div>
               <motion.h1 
-                className="text-2xl font-bold bg-gradient-to-r from-emerald-400 via-blue-400 to-amber-400 bg-clip-text text-transparent"
+                className="text-2xl font-bold text-transparent bg-gradient-to-r from-emerald-400 via-blue-400 to-amber-400 bg-clip-text"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.8, delay: 0.4 }}
@@ -277,7 +337,7 @@ const CricketAdminPage = () => {
           >
             <div className="text-right">
               <motion.span 
-                className="block text-sm bg-gradient-to-r from-emerald-300 to-blue-300 bg-clip-text text-transparent font-medium"
+                className="block text-sm font-medium text-transparent bg-gradient-to-r from-emerald-300 to-blue-300 bg-clip-text"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.7 }}
@@ -314,7 +374,7 @@ const CricketAdminPage = () => {
 
         <div className="w-full px-6 pb-4">
           <motion.div 
-            className="flex items-center gap-2 flex-wrap"
+            className="flex flex-wrap items-center gap-2"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.5 }}
@@ -356,7 +416,7 @@ const CricketAdminPage = () => {
         </div>
       </motion.header>
 
-      <main className="w-full px-6 py-8 relative z-10">
+      <main className="relative z-10 w-full px-6 py-8">
         {activeView === 'dashboard' && (
           <motion.div 
             className="space-y-8" 
@@ -411,7 +471,7 @@ const CricketAdminPage = () => {
 
             {/* Available Teams */}
             <motion.div 
-              className="p-8 border rounded-3xl backdrop-blur-xl border-white/20 shadow-2xl"
+              className="p-8 border shadow-2xl rounded-3xl backdrop-blur-xl border-white/20"
               style={{ 
                 background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 50%, rgba(245, 158, 11, 0.1) 100%)',
                 boxShadow: '0 8px 32px rgba(16, 185, 129, 0.1)'
@@ -426,7 +486,7 @@ const CricketAdminPage = () => {
             >
               <div className="flex flex-col items-start justify-between gap-4 mb-6 sm:flex-row sm:items-center">
                 <motion.h3 
-                  className="text-2xl font-bold bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text text-transparent"
+                  className="text-2xl font-bold text-transparent bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400 bg-clip-text"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 0.6 }}
@@ -437,7 +497,7 @@ const CricketAdminPage = () => {
                   value={teamSearch} 
                   onChange={e => setTeamSearch(e.target.value)} 
                   placeholder="🔍 Search teams by name, coach, captain..." 
-                  className="w-full sm:w-96 p-4 rounded-2xl bg-white/10 backdrop-blur-lg text-white placeholder:text-slate-400 border border-white/20 shadow-lg focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/20 transition-all duration-300"
+                  className="w-full p-4 text-white transition-all duration-300 border shadow-lg sm:w-96 rounded-2xl bg-white/10 backdrop-blur-lg placeholder:text-slate-400 border-white/20 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/20"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 0.7 }}
@@ -446,7 +506,7 @@ const CricketAdminPage = () => {
               </div>
               {loadingTeams ? (
                 <motion.div 
-                  className="text-slate-300 text-center py-8"
+                  className="py-8 text-center text-slate-300"
                   animate={{ opacity: [0.5, 1, 0.5] }}
                   transition={{ duration: 1.5, repeat: Infinity }}
                 >
@@ -454,7 +514,7 @@ const CricketAdminPage = () => {
                 </motion.div>
               ) : teamsError ? (
                 <motion.div 
-                  className="text-red-400 bg-red-500/10 p-4 rounded-xl border border-red-500/20"
+                  className="p-4 text-red-400 border bg-red-500/10 rounded-xl border-red-500/20"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.4 }}
@@ -471,7 +531,7 @@ const CricketAdminPage = () => {
                   {filteredTeams.map((team, index) => (
                     <motion.div 
                       key={team._id} 
-                      className="p-6 transition-all border rounded-2xl backdrop-blur-lg border-white/20 shadow-lg cursor-pointer"
+                      className="p-6 transition-all border shadow-lg cursor-pointer rounded-2xl backdrop-blur-lg border-white/20"
                       style={{ 
                         background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
                       }}
@@ -489,19 +549,19 @@ const CricketAdminPage = () => {
                       <div className="flex items-center justify-between mb-3">
                         <div className="text-lg font-bold text-white">{team.name}</div>
                         <motion.div 
-                          className="px-3 py-1 text-xs rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-bold border border-emerald-400/30"
+                          className="px-3 py-1 text-xs font-bold text-white border rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 border-emerald-400/30"
                           whileHover={{ scale: 1.1 }}
                         >
                           {team.shortName}
                         </motion.div>
                       </div>
-                      <div className="text-sm text-slate-300 mb-1">👨‍💼 Coach: <span className="text-emerald-300 font-medium">{team.coach}</span></div>
-                      <div className="text-sm text-slate-300 mb-4">👑 Captain: <span className="text-blue-300 font-medium">{team.captain}</span></div>
+                      <div className="mb-1 text-sm text-slate-300">👨‍💼 Coach: <span className="font-medium text-emerald-300">{team.coach}</span></div>
+                      <div className="mb-4 text-sm text-slate-300">👑 Captain: <span className="font-medium text-blue-300">{team.captain}</span></div>
                       <div className="flex items-center justify-between">
                         <div className="text-xs text-slate-400">👥 Players: {team.players?.length || 0}</div>
                         <motion.button 
                           onClick={() => openTeamDetail(team._id)} 
-                          className="px-4 py-2 text-sm font-bold text-white rounded-xl bg-gradient-to-r from-emerald-500 to-blue-500 shadow-lg"
+                          className="px-4 py-2 text-sm font-bold text-white shadow-lg rounded-xl bg-gradient-to-r from-emerald-500 to-blue-500"
                           whileHover={{ 
                             scale: 1.05,
                             boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)'
@@ -515,7 +575,7 @@ const CricketAdminPage = () => {
                   ))}
                   {filteredTeams.length === 0 && (
                     <motion.div 
-                      className="col-span-full py-12 text-center text-slate-400"
+                      className="py-12 text-center col-span-full text-slate-400"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.5 }}
@@ -529,7 +589,7 @@ const CricketAdminPage = () => {
 
             {/* Available Players */}
             <motion.div 
-              className="p-8 border rounded-3xl backdrop-blur-xl border-white/20 shadow-2xl"
+              className="p-8 border shadow-2xl rounded-3xl backdrop-blur-xl border-white/20"
               style={{ 
                 background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 50%, rgba(236, 72, 153, 0.1) 100%)',
                 boxShadow: '0 8px 32px rgba(59, 130, 246, 0.1)'
@@ -544,7 +604,7 @@ const CricketAdminPage = () => {
             >
               <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
                 <motion.h3 
-                  className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+                  className="text-2xl font-bold text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.6, delay: 0.8 }}
@@ -555,7 +615,7 @@ const CricketAdminPage = () => {
                   <motion.select 
                     value={playerTeamFilter} 
                     onChange={e => setPlayerTeamFilter(e.target.value)} 
-                    className="w-full sm:w-64 p-3 rounded-xl bg-white/10 backdrop-blur-lg text-white border border-white/20 shadow-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300"
+                    className="w-full p-3 text-white transition-all duration-300 border shadow-lg sm:w-64 rounded-xl bg-white/10 backdrop-blur-lg border-white/20 focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/20"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.9 }}
@@ -568,7 +628,7 @@ const CricketAdminPage = () => {
                     value={playerSearch} 
                     onChange={e => setPlayerSearch(e.target.value)} 
                     placeholder="🔍 Search players by name, role, jersey..." 
-                    className="w-full sm:w-96 p-3 rounded-xl bg-white/10 backdrop-blur-lg text-white placeholder:text-slate-400 border border-white/20 shadow-lg focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/20 transition-all duration-300"
+                    className="w-full p-3 text-white transition-all duration-300 border shadow-lg sm:w-96 rounded-xl bg-white/10 backdrop-blur-lg placeholder:text-slate-400 border-white/20 focus:border-purple-500/50 focus:ring-4 focus:ring-purple-500/20"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 1.0 }}
@@ -585,7 +645,7 @@ const CricketAdminPage = () => {
                 {filteredPlayers.slice(0, 24).map((player, index) => (
                   <motion.div 
                     key={player._id || `${player.teamId}-${player.jerseyNumber}-${player.name}`} 
-                    className="p-5 transition-all border rounded-2xl backdrop-blur-lg border-white/20 shadow-lg"
+                    className="p-5 transition-all border shadow-lg rounded-2xl backdrop-blur-lg border-white/20"
                     style={{ 
                       background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
                     }}
@@ -608,20 +668,20 @@ const CricketAdminPage = () => {
                         #{player.jerseyNumber}
                       </motion.div>
                     </div>
-                    <div className="text-sm text-slate-300 mb-3">
-                      🎯 <span className="text-blue-300 font-medium">{player.role}</span> • 
-                      🏟️ <span className="text-emerald-300 font-medium">{player.teamName}</span>
+                    <div className="mb-3 text-sm text-slate-300">
+                      🎯 <span className="font-medium text-blue-300">{player.role}</span> • 
+                      🏟️ <span className="font-medium text-emerald-300">{player.teamName}</span>
                     </div>
-                    <div className="text-xs text-slate-400 space-y-1">
-                      <div>🏏 Matches: <span className="text-white font-medium">{player.matches || 0}</span></div>
-                      <div>🏃 Runs: <span className="text-green-300 font-medium">{player.runs || 0}</span></div>
-                      <div>🎯 Wickets: <span className="text-orange-300 font-medium">{player.wickets || 0}</span></div>
+                    <div className="space-y-1 text-xs text-slate-400">
+                      <div>🏏 Matches: <span className="font-medium text-white">{player.matches || 0}</span></div>
+                      <div>🏃 Runs: <span className="font-medium text-green-300">{player.runs || 0}</span></div>
+                      <div>🎯 Wickets: <span className="font-medium text-orange-300">{player.wickets || 0}</span></div>
                     </div>
                   </motion.div>
                 ))}
                 {filteredPlayers.length === 0 && (
                   <motion.div 
-                    className="col-span-full py-12 text-center text-slate-400"
+                    className="py-12 text-center col-span-full text-slate-400"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5 }}
@@ -648,7 +708,7 @@ const CricketAdminPage = () => {
               <button 
                 onClick={reloadMatches}
                 disabled={loadingMatches}
-                className="px-3 py-1 bg-blue-600 rounded text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-1 text-white transition-colors bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loadingMatches ? '🔄 Loading...' : '🔄 Refresh'}
               </button>
@@ -658,20 +718,39 @@ const CricketAdminPage = () => {
             ) : (
               <div className="space-y-3">
                 {matches.filter(m => m.status === 'scheduled' || !m.status).map(m => (
-                  <div key={m._id} className="p-4 border rounded bg-white/5 flex items-center justify-between">
+                  <div key={m._id} className="flex items-center justify-between p-4 border rounded bg-white/5">
                     <div>
                       <div className="font-semibold text-white">{m.teamA?.name || 'TBD'} vs {m.teamB?.name || 'TBD'}</div>
-                      <div className="text-sm text-slate-400">{m.date ? new Date(m.date).toLocaleString() : 'Date TBD'} • {m.venue || 'Venue TBD'}</div>
-                      <div className="flex items-center mt-1">
+                      <div className="text-sm text-slate-400">
+                        {m.date ? new Date(m.date).toLocaleString() : 'Date TBD'} • {m.venue || 'Venue TBD'}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                           📅 Scheduled
                         </span>
+                        {m.matchType && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {m.matchType} • {m.overs} overs
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button 
+                        onClick={() => openEditMatchModal(m)} 
+                        className="px-3 py-1 text-white transition-colors rounded bg-blue-600 hover:bg-blue-700"
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteMatch(m._id)} 
+                        className="px-3 py-1 text-white transition-colors bg-red-600 rounded hover:bg-red-700"
+                      >
+                        🗑️ Delete
+                      </button>
+                      <button 
                         onClick={() => navigate(`/admin/cricket/score/${m._id}`)} 
-                        className="px-3 py-1 bg-emerald-600 rounded text-white hover:bg-emerald-700 transition-colors"
+                        className="px-3 py-1 text-white transition-colors rounded bg-emerald-600 hover:bg-emerald-700"
                       >
                         🚀 Start Live Scoring
                       </button>
@@ -686,17 +765,17 @@ const CricketAdminPage = () => {
           <div className="p-6 border bg-white/5 rounded-2xl">
             <h3 className="mb-4 text-xl font-bold text-white">Teams</h3>
             <div className="mb-4">
-              <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Search teams..." className="w-full p-2 rounded bg-slate-800 text-slate-100 border border-white/10" />
+              <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Search teams..." className="w-full p-2 border rounded bg-slate-800 text-slate-100 border-white/10" />
             </div>
             {loadingTeams ? <div>Loading teams...</div> : teamsError ? <div className="text-red-300">{teamsError}</div> : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredTeams.map(team => (
                 <div key={team._id} className="p-4 border rounded bg-white/5 border-white/10">
                   <div className="font-semibold text-white">{team.name}</div>
                   <div className="text-sm text-slate-400">{team.shortName} • {team.players?.length || 0} players</div>
-                  <div className="mt-3"><button onClick={() => openTeamDetail(team._id)} className="px-3 py-1 bg-emerald-600 rounded text-white">Details</button></div>
+                  <div className="mt-3"><button onClick={() => openTeamDetail(team._id)} className="px-3 py-1 text-white rounded bg-emerald-600">Details</button></div>
                 </div>
               ))}
-              {filteredTeams.length === 0 && (<div className="col-span-full py-8 text-center text-slate-400">No teams match your search.</div>)}
+              {filteredTeams.length === 0 && (<div className="py-8 text-center col-span-full text-slate-400">No teams match your search.</div>)}
               </div>
             )}
           </div>
@@ -706,11 +785,11 @@ const CricketAdminPage = () => {
           <div className="p-6 border bg-white/5 rounded-2xl">
             <h3 className="mb-4 text-xl font-bold text-white">Players</h3>
             <div className="flex flex-col gap-2 mb-4 sm:flex-row">
-              <select value={playerTeamFilter} onChange={e => setPlayerTeamFilter(e.target.value)} className="w-full sm:w-56 p-2 rounded bg-slate-800 text-slate-100 border border-white/10">
+              <select value={playerTeamFilter} onChange={e => setPlayerTeamFilter(e.target.value)} className="w-full p-2 border rounded sm:w-56 bg-slate-800 text-slate-100 border-white/10">
                 <option value="all">All Teams</option>
                 {teams.map(t => (<option key={t._id} value={t._id}>{t.name}</option>))}
               </select>
-              <input value={playerSearch} onChange={e => setPlayerSearch(e.target.value)} placeholder="Search by name, role or jersey" className="w-full p-2 rounded bg-slate-800 text-slate-100 border border-white/10" />
+              <input value={playerSearch} onChange={e => setPlayerSearch(e.target.value)} placeholder="Search by name, role or jersey" className="w-full p-2 border rounded bg-slate-800 text-slate-100 border-white/10" />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{filteredPlayers.map(player => (
               <div key={player._id || `${player.teamId}-${player.jerseyNumber}-${player.name}`} className="p-3 border rounded bg-white/5 border-white/10">
@@ -723,24 +802,64 @@ const CricketAdminPage = () => {
                 </div>
               </div>
             ))}
-            {filteredPlayers.length === 0 && (<div className="col-span-full py-8 text-center text-slate-400">No players match your filters.</div>)}
+            {filteredPlayers.length === 0 && (<div className="py-8 text-center col-span-full text-slate-400">No players match your filters.</div>)}
             </div>
           </div>
         )}
 
         {activeView === 'live' && (
           <div className="p-6 border bg-white/5 rounded-2xl">
-            <h3 className="mb-4 text-xl font-bold text-white">Live Scoring</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-white">Live Matches</h3>
+              <button 
+                onClick={reloadMatches}
+                disabled={loadingMatches}
+                className="px-3 py-1 text-white transition-colors bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMatches ? '🔄 Loading...' : '🔄 Refresh'}
+              </button>
+            </div>
             {loadingMatches ? <div>Loading matches...</div> : matches.filter(m => m.isLive || m.status === 'live').length === 0 ? (
-              <div className="text-slate-400">No live matches currently</div>
+              <div className="text-slate-400">No live matches currently. Start scoring from scheduled matches.</div>
             ) : (
               <div className="space-y-3">{matches.filter(m => m.isLive || m.status === 'live').map(m => (
-                <div key={m._id} className="p-4 border rounded bg-white/5 flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-white">{m.teamA?.name} vs {m.teamB?.name}</div>
-                    <div className="text-sm text-slate-400">{m.venue || 'Venue TBD'}</div>
+                <div key={m._id} className="p-4 border rounded bg-white/5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="font-semibold text-white">{m.teamA?.name} vs {m.teamB?.name}</div>
+                      <div className="text-sm text-slate-400">{m.venue || 'Venue TBD'}</div>
+                    </div>
+                    <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-full animate-pulse">
+                      🔴 LIVE
+                    </span>
                   </div>
-                  <div><button onClick={() => navigate(`/admin/cricket/score/${m._id}`)} className="px-3 py-1 bg-emerald-600 rounded text-white">🏏 Continue Live Scoring</button></div>
+                  {m.score && (
+                    <div className="grid grid-cols-2 gap-4 p-3 mb-3 rounded bg-slate-800/50">
+                      <div>
+                        <div className="text-xs text-slate-400">{m.teamA?.name}</div>
+                        <div className="text-2xl font-bold text-white">
+                          {m.score.teamA?.runs || 0}/{m.score.teamA?.wickets || 0}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-slate-400">{m.teamB?.name}</div>
+                        <div className="text-2xl font-bold text-white">
+                          {m.score.teamB?.runs || 0}/{m.score.teamB?.wickets || 0}
+                        </div>
+                      </div>
+                      <div className="col-span-2 text-sm text-center text-slate-400">
+                        Overs: {m.score.overs || '0.0'}
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => navigate(`/admin/cricket/score/${m._id}`)} 
+                      className="flex-1 px-3 py-2 text-white transition-colors rounded bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      🏏 Continue Live Scoring
+                    </button>
+                  </div>
                 </div>
               ))}</div>
             )}
@@ -763,6 +882,22 @@ const CricketAdminPage = () => {
                 <button onClick={closeScheduleModal} className="text-slate-400">Close</button>
               </div>
               <ScheduleForm teams={teams} onCreate={handleCreateMatch} />
+            </div>
+          </div>
+        )}
+
+        {showEditMatchModal && selectedMatch && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="w-full max-w-lg p-6 border bg-slate-900 rounded-xl border-white/10">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xl font-bold text-white">Edit Match</h4>
+                <button onClick={closeEditMatchModal} className="text-slate-400">Close</button>
+              </div>
+              <EditMatchForm 
+                teams={teams} 
+                match={selectedMatch} 
+                onUpdate={(formData) => handleUpdateMatch(selectedMatch._id, formData)} 
+              />
             </div>
           </div>
         )}
@@ -819,6 +954,8 @@ const ScheduleForm = ({ teams = [], onCreate }) => {
   const [teamB, setTeamB] = useState(teams[1]?._id || '');
   const [date, setDate] = useState('');
   const [venue, setVenue] = useState('');
+  const [matchType, setMatchType] = useState('T20');
+  const [overs, setOvers] = useState(20);
 
   useEffect(() => {
     if (teams.length >= 2) {
@@ -827,39 +964,184 @@ const ScheduleForm = ({ teams = [], onCreate }) => {
     }
   }, [teams]);
 
+  // Update overs when match type changes
+  useEffect(() => {
+    switch(matchType) {
+      case 'T20':
+        setOvers(20);
+        break;
+      case 'ODI':
+        setOvers(50);
+        break;
+      case 'T10':
+        setOvers(10);
+        break;
+      case 'Test':
+        setOvers(90);
+        break;
+      case 'Custom':
+        // Keep current overs value for custom
+        break;
+      default:
+        setOvers(20);
+    }
+  }, [matchType]);
+
   const submit = (e) => {
     e.preventDefault();
     if (!teamA || !teamB || !date) return alert('Please select teams and date');
     if (teamA === teamB) return alert('Team A and Team B must be different');
-    onCreate({ teamA, teamB, date, venue });
+    if (!overs || overs < 1) return alert('Please enter valid number of overs');
+    onCreate({ teamA, teamB, date, venue, matchType, overs });
   };
 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
         <label className="block mb-1 text-sm text-slate-300">Team A</label>
-        <select value={teamA} onChange={e => setTeamA(e.target.value)} className="w-full p-2 bg-slate-800 rounded">
+        <select value={teamA} onChange={e => setTeamA(e.target.value)} className="w-full p-2 rounded bg-slate-800">
           <option value="">Select team</option>
           {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
         </select>
       </div>
       <div>
         <label className="block mb-1 text-sm text-slate-300">Team B</label>
-        <select value={teamB} onChange={e => setTeamB(e.target.value)} className="w-full p-2 bg-slate-800 rounded">
+        <select value={teamB} onChange={e => setTeamB(e.target.value)} className="w-full p-2 rounded bg-slate-800">
           <option value="">Select team</option>
           {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
         </select>
       </div>
       <div>
+        <label className="block mb-1 text-sm text-slate-300">Match Type</label>
+        <select value={matchType} onChange={e => setMatchType(e.target.value)} className="w-full p-2 text-white rounded bg-slate-800">
+          <option value="T20">T20 (20 overs)</option>
+          <option value="ODI">ODI (50 overs)</option>
+          <option value="T10">T10 (10 overs)</option>
+          <option value="Test">Test (90 overs)</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">
+          Number of Overs {matchType !== 'Custom' && <span className="text-xs text-slate-400">(Auto-set based on match type)</span>}
+        </label>
+        <input 
+          type="number" 
+          min="1" 
+          max="200"
+          value={overs} 
+          onChange={e => setOvers(parseInt(e.target.value) || 0)} 
+          disabled={matchType !== 'Custom'}
+          className={`w-full p-2 rounded bg-slate-800 text-white ${matchType !== 'Custom' ? 'opacity-60 cursor-not-allowed' : ''}`}
+          placeholder="Enter number of overs"
+        />
+      </div>
+      <div>
         <label className="block mb-1 text-sm text-slate-300">Date & Time</label>
-        <input value={date} onChange={e => setDate(e.target.value)} type="datetime-local" className="w-full p-2 bg-slate-800 rounded" />
+        <input value={date} onChange={e => setDate(e.target.value)} type="datetime-local" className="w-full p-2 rounded bg-slate-800" />
       </div>
       <div>
         <label className="block mb-1 text-sm text-slate-300">Venue (optional)</label>
-        <input value={venue} onChange={e => setVenue(e.target.value)} className="w-full p-2 bg-slate-800 rounded" />
+        <input value={venue} onChange={e => setVenue(e.target.value)} className="w-full p-2 rounded bg-slate-800" />
       </div>
       <div className="flex justify-end">
-        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded">Schedule</button>
+        <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded bg-emerald-600">Schedule</button>
+      </div>
+    </form>
+  );
+};
+
+// Edit Match form component
+const EditMatchForm = ({ teams = [], match, onUpdate }) => {
+  const [teamA, setTeamA] = useState(match?.teamA?._id || match?.teamA || '');
+  const [teamB, setTeamB] = useState(match?.teamB?._id || match?.teamB || '');
+  const [date, setDate] = useState(match?.date ? new Date(match.date).toISOString().slice(0, 16) : '');
+  const [venue, setVenue] = useState(match?.venue || '');
+  const [matchType, setMatchType] = useState(match?.matchType || 'T20');
+  const [overs, setOvers] = useState(match?.overs || 20);
+
+  // Update overs when match type changes
+  useEffect(() => {
+    switch(matchType) {
+      case 'T20':
+        setOvers(20);
+        break;
+      case 'ODI':
+        setOvers(50);
+        break;
+      case 'T10':
+        setOvers(10);
+        break;
+      case 'Test':
+        setOvers(90);
+        break;
+      case 'Custom':
+        // Keep current overs value for custom
+        break;
+      default:
+        setOvers(20);
+    }
+  }, [matchType]);
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!teamA || !teamB || !date) return alert('Please select teams and date');
+    if (teamA === teamB) return alert('Team A and Team B must be different');
+    if (!overs || overs < 1) return alert('Please enter valid number of overs');
+    onUpdate({ teamA, teamB, date, venue, matchType, overs });
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">Team A</label>
+        <select value={teamA} onChange={e => setTeamA(e.target.value)} className="w-full p-2 rounded bg-slate-800 text-white">
+          <option value="">Select team</option>
+          {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">Team B</label>
+        <select value={teamB} onChange={e => setTeamB(e.target.value)} className="w-full p-2 rounded bg-slate-800 text-white">
+          <option value="">Select team</option>
+          {teams.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">Match Type</label>
+        <select value={matchType} onChange={e => setMatchType(e.target.value)} className="w-full p-2 text-white rounded bg-slate-800">
+          <option value="T20">T20 (20 overs)</option>
+          <option value="ODI">ODI (50 overs)</option>
+          <option value="T10">T10 (10 overs)</option>
+          <option value="Test">Test (90 overs)</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </div>
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">
+          Number of Overs {matchType !== 'Custom' && <span className="text-xs text-slate-400">(Auto-set based on match type)</span>}
+        </label>
+        <input 
+          type="number" 
+          min="1" 
+          max="200"
+          value={overs} 
+          onChange={e => setOvers(parseInt(e.target.value) || 0)} 
+          disabled={matchType !== 'Custom'}
+          className={`w-full p-2 rounded bg-slate-800 text-white ${matchType !== 'Custom' ? 'opacity-60 cursor-not-allowed' : ''}`}
+          placeholder="Enter number of overs"
+        />
+      </div>
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">Date & Time</label>
+        <input value={date} onChange={e => setDate(e.target.value)} type="datetime-local" className="w-full p-2 text-white rounded bg-slate-800" />
+      </div>
+      <div>
+        <label className="block mb-1 text-sm text-slate-300">Venue (optional)</label>
+        <input value={venue} onChange={e => setVenue(e.target.value)} className="w-full p-2 text-white rounded bg-slate-800" />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button type="submit" className="px-4 py-2 text-sm font-medium text-white rounded bg-blue-600 hover:bg-blue-700">Update Match</button>
       </div>
     </form>
   );

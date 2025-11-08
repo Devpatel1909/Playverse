@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../features/cricket/UI/card';
-import { Button } from '../../features/cricket/UI/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../features/cricket/UI/dialog';
+import { Card, CardHeader, CardTitle, CardContent } from '../../features/cricket/ui/card';
+import { Button } from '../../features/cricket/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../../features/cricket/ui/dialog';
 import cricketScoringAPIService from '../../services/cricketScoringAPI';
 
 const ErrorRecoveryPanel = ({ matchId, onClose }) => {

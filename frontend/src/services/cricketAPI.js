@@ -47,22 +47,37 @@ class CricketAPIService {
     let data;
     const contentType = response.headers.get('content-type');
     
+    // Clone response to avoid consuming it
+    const clonedResponse = response.clone();
+    
     if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
+      try {
+        data = await clonedResponse.json();
+      } catch (e) {
+        console.error('[CricketAPI] Failed to parse JSON:', e);
+        const text = await response.text();
+        console.error('[CricketAPI] Response text:', text);
+        data = { message: text || 'Failed to parse response' };
+      }
     } else {
       // If response is not JSON, get text content
-      const text = await response.text();
+      const text = await clonedResponse.text();
       console.error('[CricketAPI] Non-JSON response:', { status: response.status, text });
       data = { message: text || 'Unknown error' };
     }
     
     if (!response.ok) {
-      console.error('[CricketAPI] API Error:', { 
+      console.error('[CricketAPI] API Error Details:', { 
         status: response.status, 
         statusText: response.statusText,
-        data 
+        url: response.url,
+        data,
+        fullResponse: data
       });
-      throw new Error(data.message || `HTTP ${response.status}: ${response.statusText}`);
+      
+      // More detailed error message
+      const errorMessage = data?.message || data?.error || response.statusText || 'Unknown error';
+      throw new Error(errorMessage);
     }
     
     return data;
@@ -155,14 +170,26 @@ class CricketAPIService {
   // Player Management APIs
   async addPlayer(teamId, playerData) {
     try {
-      const response = await fetch(`${this.baseURL}/teams/${teamId}/players`, {
+      console.log('[CricketAPI] Adding player to team:', teamId);
+      console.log('[CricketAPI] Player data:', playerData);
+      
+      const url = `${this.baseURL}/teams/${teamId}/players`;
+      console.log('[CricketAPI] POST URL:', url);
+      
+      const headers = this.getHeaders();
+      console.log('[CricketAPI] Request headers:', headers);
+      
+      const response = await fetch(url, {
         method: 'POST',
-        headers: this.getHeaders(),
+        headers,
         body: JSON.stringify(playerData)
       });
+      
+      console.log('[CricketAPI] Response status:', response.status);
+      
       return await this.handleResponse(response);
     } catch (error) {
-      console.error('Failed to add player:', error);
+      console.error('[CricketAPI] Failed to add player:', error);
       throw error;
     }
   }

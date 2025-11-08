@@ -790,8 +790,13 @@ const CricketManagement = () => {
         economy: 0
       };
       
+      console.log('[CricketManagement] Attempting to add player:', playerData);
+      console.log('[CricketManagement] Team ID:', selectedTeam._id || selectedTeam.id);
+      
       cricketAPIService.validatePlayerData(playerData);
       const response = await cricketAPIService.addPlayer(selectedTeam._id || selectedTeam.id, playerData);
+      
+      console.log('[CricketManagement] Add player response:', response);
       
       if (response.success && response.data) {
         const updatedTeams = teams.map(team => 
@@ -820,8 +825,23 @@ const CricketManagement = () => {
         }, 100);
       }
     } catch (error) {
-      console.error('Failed to add player:', error);
-      alert(`❌ Failed to Add Player\n\nError: ${error.message}\n\nPlease check your data and try again.`);
+      console.error('[CricketManagement] Failed to add player:', error);
+      console.error('[CricketManagement] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
+      // Check if it's a network error
+      if (error.message.includes('fetch') || error.message.includes('NetworkError')) {
+        alert(`❌ Network Error\n\nCannot connect to the backend server.\n\nPlease ensure:\n1. Backend server is running (npm run dev in backend folder)\n2. Server is running on http://localhost:5000 or http://localhost:5001\n3. No firewall is blocking the connection\n\nError: ${error.message}`);
+      } else if (error.message.includes('validation failed') || error.message.includes('not a valid enum')) {
+        alert(`❌ Invalid Player Data\n\n${error.message}\n\nPlease ensure you've selected a valid role from the dropdown menu.`);
+      } else if (error.message.includes('Jersey number')) {
+        alert(`❌ Jersey Number Conflict\n\n${error.message}\n\nPlease use a different jersey number.`);
+      } else {
+        alert(`❌ Failed to Add Player\n\nError: ${error.message}\n\nPlease check:\n• All required fields are filled\n• Role is selected from dropdown\n• Team has less than 15 players\n• Backend server is running`);
+      }
     } finally {
       setLoading(false);
     }
@@ -1760,11 +1780,26 @@ const CricketManagement = () => {
                         className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg appearance-none bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
                       >
                         <option value="">Select role</option>
-                        <option value="Batsman">Batsman</option>
-                        <option value="Bowler">Bowler</option>
-                        <option value="All-rounder">All-rounder</option>
-                        <option value="Wicket Keeper">Wicket Keeper</option>
-                        <option value="Captain">Captain</option>
+                        <optgroup label="Captain Roles">
+                          <option value="Captain/Batsman">Captain/Batsman</option>
+                          <option value="Captain/Bowler">Captain/Bowler</option>
+                          <option value="Captain/All-rounder">Captain/All-rounder</option>
+                          <option value="Captain/Wicket Keeper">Captain/Wicket Keeper</option>
+                        </optgroup>
+                        <optgroup label="Batting">
+                          <option value="Batsman">Batsman</option>
+                          <option value="Opening Batsman">Opening Batsman</option>
+                          <option value="Middle Order Batsman">Middle Order Batsman</option>
+                          <option value="Finisher">Finisher</option>
+                        </optgroup>
+                        <optgroup label="Bowling">
+                          <option value="Fast Bowler">Fast Bowler</option>
+                          <option value="Spin Bowler">Spin Bowler</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                          <option value="All-rounder">All-rounder</option>
+                          <option value="Wicket Keeper">Wicket Keeper</option>
+                        </optgroup>
                       </select>
                     </div>
                   </div>
@@ -1786,7 +1821,7 @@ const CricketManagement = () => {
                     <div className="relative">
                       <Award className="absolute w-3.5 h-3.5 text-orange-400 transform -translate-y-1/2 left-3 top-1/2" />
                       <input
-                        type="text"
+                        type="number"
                         value={newPlayer.experience}
                         onChange={(e) => setNewPlayer({...newPlayer, experience: e.target.value})}
                         className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-400/20"
@@ -1933,11 +1968,26 @@ const CricketManagement = () => {
                         className="w-full py-2.5 pl-9 pr-3 text-white transition-all duration-300 border rounded-lg appearance-none bg-gradient-to-r from-slate-800/80 to-slate-700/80 border-white/20 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/20"
                       >
                         <option value="">Select role</option>
-                        <option value="Batsman">Batsman</option>
-                        <option value="Bowler">Bowler</option>
-                        <option value="All-rounder">All-rounder</option>
-                        <option value="Wicket Keeper">Wicket Keeper</option>
-                        <option value="Captain">Captain</option>
+                        <optgroup label="Captain Roles">
+                          <option value="Captain/Batsman">Captain/Batsman</option>
+                          <option value="Captain/Bowler">Captain/Bowler</option>
+                          <option value="Captain/All-rounder">Captain/All-rounder</option>
+                          <option value="Captain/Wicket Keeper">Captain/Wicket Keeper</option>
+                        </optgroup>
+                        <optgroup label="Batting">
+                          <option value="Batsman">Batsman</option>
+                          <option value="Opening Batsman">Opening Batsman</option>
+                          <option value="Middle Order Batsman">Middle Order Batsman</option>
+                          <option value="Finisher">Finisher</option>
+                        </optgroup>
+                        <optgroup label="Bowling">
+                          <option value="Fast Bowler">Fast Bowler</option>
+                          <option value="Spin Bowler">Spin Bowler</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                          <option value="All-rounder">All-rounder</option>
+                          <option value="Wicket Keeper">Wicket Keeper</option>
+                        </optgroup>
                       </select>
                     </div>
                   </div>

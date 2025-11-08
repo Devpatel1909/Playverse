@@ -6,6 +6,12 @@ const CricketMatchSchema = new mongoose.Schema(
     teamB: { type: mongoose.Schema.Types.ObjectId, ref: 'CricketTeam', required: true },
     date: { type: Date, required: true },
     venue: { type: String, trim: true, default: '' },
+    matchType: {
+      type: String,
+      enum: ['T20', 'ODI', 'T10', 'Test', 'Custom'],
+      default: 'T20'
+    },
+    overs: { type: Number, default: 20 },
     status: {
       type: String,
       enum: ['scheduled', 'live', 'completed', 'cancelled'],
