@@ -815,7 +815,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
             wickets: secondInnings ? secondInnings.wickets : 0
           },
           overs: formatOvers(current.deliveries),
-          status: match.innings.length > 1 ? '2nd Innings' : '1st Innings'
+          status: 'live' // Match is live during scoring
         };
 
         console.log('[CricketScoringUI] Syncing score to database:', scoreData);
@@ -980,6 +980,10 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       const innings1 = match.innings[0];
       const innings2 = match.innings[1];
 
+      // Calculate legal balls in current over
+      const legalBalls = innings2.deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
+      const ballsInOver = legalBalls % 6;
+
       const scoreData = {
         teamA: {
           runs: innings1.battingTeam === match.teams[0].name ? innings1.total : innings2.total,
@@ -989,20 +993,20 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
           runs: innings1.battingTeam === match.teams[1].name ? innings1.total : innings2.total,
           wickets: innings1.battingTeam === match.teams[1].name ? innings1.wickets : innings2.wickets
         },
-        overs: `${innings2.oversBowled}.${legalBallsThisOver}`,
+        overs: `${innings2.oversBowled}.${ballsInOver}`,
         status: 'completed',
         result: resultText
       };
 
-      console.log('[CricketScoring] Saving completed match:', { matchId: match.matchId, scoreData });
+      console.log('[CricketScoring] Saving completed match:', { matchId, scoreData });
       
-      await cricketAPIService.updateMatchScore(match.matchId, scoreData);
+      await cricketAPIService.updateMatchScore(matchId, scoreData);
       
       // Calculate and save player statistics
       const playerStats = calculatePlayerStats();
       console.log('[CricketScoring] Saving player statistics:', playerStats);
       
-      await cricketAPIService.updatePlayerStats(match.matchId, playerStats);
+      await cricketAPIService.updatePlayerStats(matchId, playerStats);
       
       console.log('[CricketScoring] Match and player stats saved successfully to database');
     } catch (error) {
@@ -1010,7 +1014,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       // Don't block the celebration, just log the error
       alert(`Match completed but failed to save to database: ${error.message}`);
     }
-  }, [match, legalBallsThisOver, calculatePlayerStats]);
+  }, [match, matchId, calculatePlayerStats]);
 
   //
   // Helpers to find player entities across teams

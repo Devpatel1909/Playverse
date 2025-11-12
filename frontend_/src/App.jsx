@@ -1,19 +1,19 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "./features/admin/pages/AdminLogin.jsx";
-import AdminSportsOverview from "./features/admin/pages/CricketAdminPage.js";
-import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.js";
+import AdminSportsOverview from "./features/admin/pages/CricketAdminPage.jsx";
+import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.jsx";
 import SuperAdminSportsOverview from "./features/SuperAdmin/Pages/SuperAdminSportsOverview.jsx";
 import CricketManagement from "./features/cricket/components/CricketManagement.jsx";
-import CricketScoringWrapper from "./features/cricket/components/CricketScoringWrapper.js";
+import CricketScoringWrapper from "./features/cricket/components/CricketScoringWrapper.jsx";
 
-import FootballManagement from "./features/football/components/FootballManagement.js"; // <-- Add this import
-import FootballAdminPage from "./features/admin/pages/FootballAdminPage.js";
-import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.js";
-import TennisAdminPage from "./features/admin/pages/TennisAdminPage.js";
-import APIConnectionTest from "./components/APIConnectionTest.js";
-import ProtectedRoute from "./components/ProtectedRoute.js";
+import FootballManagement from "./features/football/components/FootballManagement.jsx"; // <-- Add this import
+import FootballAdminPage from "./features/admin/pages/FootballAdminPage.jsx";
+import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.jsx";
+import TennisAdminPage from "./features/admin/pages/TennisAdminPage.jsx";
+import APIConnectionTest from "./components/APIConnectionTest.jsx";
+import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
-import SuperAdminDebug from "./components/SuperAdminDebug.js";
+import SuperAdminDebug from "./components/SuperAdminDebug.jsx";
 import PublicScoreView from "./features/users/pages/PublicScoreView.jsx";
 import MatchDetailPage from "./features/users/pages/MatchDetailPage.jsx";
 import SchedulePage from "./features/users/pages/SchedulePage.jsx";

@@ -758,6 +758,66 @@ const CricketManagement = () => {
     }
   };
 
+  // Start Match - Create and navigate to live scoring
+  const handleStartMatch = async (team) => {
+    // Get opponent team selection
+    const availableOpponents = teams.filter(t => (t._id || t.id) !== (team._id || team.id));
+    
+    if (availableOpponents.length === 0) {
+      alert('❌ No opponent teams available!\n\nPlease create at least one more team to start a match.');
+      return;
+    }
+
+    // Show opponent selection dialog
+    const opponentNames = availableOpponents.map((t, idx) => `${idx + 1}. ${t.name} (${t.shortName})`).join('\n');
+    const opponentIndex = prompt(
+      `🏏 START CRICKET MATCH\n\n` +
+      `Team A: ${team.name}\n\n` +
+      `Select opponent team (enter number):\n${opponentNames}`
+    );
+
+    if (!opponentIndex) return;
+
+    const selectedOpponent = availableOpponents[parseInt(opponentIndex) - 1];
+    if (!selectedOpponent) {
+      alert('❌ Invalid selection. Please try again.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Create match
+      const matchData = {
+        teamA: team._id || team.id,
+        teamB: selectedOpponent._id || selectedOpponent.id,
+        date: new Date().toISOString(),
+        venue: team.homeGround || 'Venue TBD',
+        matchType: 'T20',
+        overs: 20,
+        status: 'scheduled'
+      };
+
+      console.log('[CricketManagement] Creating match:', matchData);
+      const response = await cricketAPIService.createMatch(matchData);
+      
+      if (response.success && response.data) {
+        const matchId = response.data._id;
+        console.log('[CricketManagement] Match created:', matchId);
+        
+        // Navigate to live scoring
+        navigate(`/admin/cricket/score/${matchId}`);
+      } else {
+        throw new Error('Failed to create match');
+      }
+    } catch (error) {
+      console.error('Failed to start match:', error);
+      alert(`❌ Failed to start match: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddPlayer = async () => {
     if (!newPlayer.name || !newPlayer.role || !selectedTeam) {
       alert('❌ Please fill in all required fields (Name and Role)');
@@ -1497,7 +1557,7 @@ const CricketManagement = () => {
             <div className="relative mb-6">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500/10 to-purple-500/10 rounded-xl blur-lg"></div>
               <div className="relative p-4 border bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl rounded-xl border-white/20">
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 mb-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="p-3 text-center border rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-600/10 border-emerald-500/20">
                     <Shield className="w-4 h-4 mx-auto mb-1 text-emerald-400" />
                     <h3 className="text-xs font-medium text-emerald-400 mb-0.5">Team Captain</h3>
@@ -1523,6 +1583,18 @@ const CricketManagement = () => {
                       <p className="text-xs text-red-300">Maximum Reached</p>
                     )}
                   </div>
+                </div>
+                
+                {/* Start Match Button */}
+                <div className="flex justify-center pt-3 border-t border-white/10">
+                  <button
+                    onClick={() => handleStartMatch(selectedTeam)}
+                    className="flex items-center px-6 py-3 space-x-2 font-semibold text-white transition-all duration-300 transform shadow-lg bg-gradient-to-r from-green-500 via-emerald-600 to-teal-600 rounded-xl hover:from-green-600 hover:via-emerald-700 hover:to-teal-700 hover:scale-105 hover:shadow-2xl"
+                  >
+                    <Activity className="w-5 h-5" />
+                    <span>Start Live Match</span>
+                    <Zap className="w-5 h-5 animate-pulse" />
+                  </button>
                 </div>
               </div>
             </div>
