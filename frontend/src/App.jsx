@@ -14,20 +14,19 @@ import APIConnectionTest from "./components/APIConnectionTest.js";
 import ProtectedRoute from "./components/ProtectedRoute.js";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
 import SuperAdminDebug from "./components/SuperAdminDebug.js";
-import PublicScoreView from "./pages/PublicScoreView.js";
-import HomePage from "./pages/HomePage.js";
-import MatchDetailPage from "./pages/MatchDetailPage.js";
-import SchedulePage from "./pages/SchedulePage.js";
-
+import PublicScoreView from "./features/users/pages/PublicScoreView.jsx";
+import MatchDetailPage from "./features/users/pages/MatchDetailPage.jsx";
+import SchedulePage from "./features/users/pages/SchedulePage.jsx";
+import ArchivesPage from "./features/users/pages/ArchivesPage.jsx";
 function App() {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/home" element={<HomePage />} />
+      <Route path="/" element={<PublicScoreView />} />
       <Route path="/scores" element={<PublicScoreView />} />
       <Route path="/scores/:sport" element={<PublicScoreView />} />
       <Route path="/schedule" element={<SchedulePage />} />
+      <Route path="/archives" element={<ArchivesPage />} />
       <Route path="/match/:matchId" element={<MatchDetailPage />} />
 
       {/* API Connection Test */}

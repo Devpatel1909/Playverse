@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, Trophy, Calendar, Users, Menu } from 'lucide-react';
+import { Trophy, Calendar, Archive, Menu } from 'lucide-react';
 
 const Navigation = () => {
   const navigate = useNavigate();
@@ -18,13 +18,6 @@ const Navigation = () => {
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
             <Link 
-              to="/" 
-              className="flex items-center space-x-1 text-gray-700 hover:text-red-600 transition-colors"
-            >
-              <Home className="w-4 h-4" />
-              <span>Home</span>
-            </Link>
-            <Link 
               to="/scores" 
               className="flex items-center space-x-1 text-gray-700 hover:text-red-600 transition-colors"
             >
@@ -37,6 +30,13 @@ const Navigation = () => {
             >
               <Calendar className="w-4 h-4" />
               <span>Schedule</span>
+            </Link>
+            <Link 
+              to="/archives" 
+              className="flex items-center space-x-1 text-gray-700 hover:text-red-600 transition-colors"
+            >
+              <Archive className="w-4 h-4" />
+              <span>Archives</span>
             </Link>
           </div>
 
