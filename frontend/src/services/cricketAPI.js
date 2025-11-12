@@ -386,6 +386,20 @@ class CricketAPIService {
     }
   }
 
+  async updatePlayerStats(matchId, playerStats) {
+    try {
+      const response = await fetch(`${this.baseURL}/matches/${matchId}/players/stats`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify({ playerStats })
+      });
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('Failed to update player stats:', error);
+      throw error;
+    }
+  }
+
   // Utility method to convert file to base64
   fileToBase64(file) {
     return new Promise((resolve, reject) => {

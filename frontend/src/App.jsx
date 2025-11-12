@@ -1,23 +1,23 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import AdminLogin from "./features/admin/pages/AdminLogin.jsx";
-import AdminSportsOverview from "./features/admin/pages/CricketAdminPage.jsx";
-import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.jsx";
+import AdminSportsOverview from "./features/admin/pages/CricketAdminPage.js";
+import SuperAdminEntry from "./features/SuperAdmin/Pages/SuperAdminEntry.js";
 import SuperAdminSportsOverview from "./features/SuperAdmin/Pages/SuperAdminSportsOverview.jsx";
 import CricketManagement from "./features/cricket/components/CricketManagement.jsx";
-import CricketScoringWrapper from "./features/cricket/components/CricketScoringWrapper.jsx";
+import CricketScoringWrapper from "./features/cricket/components/CricketScoringWrapper.js";
 
-import FootballManagement from "./features/football/components/FootballManagement.jsx"; // <-- Add this import
-import FootballAdminPage from "./features/admin/pages/FootballAdminPage.jsx";
-import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.jsx";
-import TennisAdminPage from "./features/admin/pages/TennisAdminPage.jsx";
-import APIConnectionTest from "./components/APIConnectionTest.jsx";
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import FootballManagement from "./features/football/components/FootballManagement.js"; // <-- Add this import
+import FootballAdminPage from "./features/admin/pages/FootballAdminPage.js";
+import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.js";
+import TennisAdminPage from "./features/admin/pages/TennisAdminPage.js";
+import APIConnectionTest from "./components/APIConnectionTest.js";
+import ProtectedRoute from "./components/ProtectedRoute.js";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
-import SuperAdminDebug from "./components/SuperAdminDebug.jsx";
-import PublicScoreView from "./pages/PublicScoreView.jsx";
-import HomePage from "./pages/HomePage.jsx";
-import MatchDetailPage from "./pages/MatchDetailPage.jsx";
-import SchedulePage from "./pages/SchedulePage.jsx";
+import SuperAdminDebug from "./components/SuperAdminDebug.js";
+import PublicScoreView from "./pages/PublicScoreView.js";
+import HomePage from "./pages/HomePage.js";
+import MatchDetailPage from "./pages/MatchDetailPage.js";
+import SchedulePage from "./pages/SchedulePage.js";
 
 function App() {
   return (

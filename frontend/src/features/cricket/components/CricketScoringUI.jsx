@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import cricketAPIService from "../../../services/cricketAPI";
-
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import { Button } from "../../../components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs";
 import { Badge } from "../../../components/ui/badge";
 import { Input } from "../../../components/ui/input";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../../../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../../../components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/ui/table";
 import { Separator } from "../../../components/ui/separator";
@@ -32,15 +30,39 @@ const calcRR = (runs, deliveries) => {
 
 const swapStrikeIfNeeded = (strikerId, nonStrikerId, runs, type) => {
   const isOdd = runs % 2 === 1;
-  const isLegal = type !== "WIDE" && type !== "NOBALL";
-  if (!isLegal) return { strikerId, nonStrikerId };
+  
+  // For wides - only the extra runs (beyond the 1 penalty) matter for strike change
+  // Wide = 1 run (no change), Wide+1 = 2 runs (no change), Wide+2 = 3 runs (change)
+  if (type === "WIDE") {
+    // Subtract 1 (the penalty) to get actual runs taken
+    const extraRuns = runs - 1;
+    if (extraRuns % 2 === 1) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
+    return { strikerId, nonStrikerId };
+  }
+  
+  // For byes and leg byes - total runs determine strike change
+  if (type === "BYE" || type === "LEGBYE") {
+    if (isOdd) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
+    return { strikerId, nonStrikerId };
+  }
+  
+  // For no balls - runs off the bat determine strike change
+  if (type === "NOBALL") {
+    if (isOdd) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
+    return { strikerId, nonStrikerId };
+  }
+  
+  // For legal balls - strike changes on odd runs
   if (isOdd) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
   return { strikerId, nonStrikerId };
 };
 
-const endOfOverSwap = (strikerId, nonStrikerId, type, deliveries) => {
-  const legalThisOver = deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length % 6;
-  if (legalThisOver === 0 && type !== "WIDE" && type !== "NOBALL") {
+// Determine end-of-over swapping: if the ball just completed the over (i.e., legal ball count % 6 === 0),
+// swap striker and non-striker.
+const endOfOverSwap = (strikerId, nonStrikerId, deliveriesAfterThisBall) => {
+  const legal = deliveriesAfterThisBall.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
+  // If exactly an integer number of overs have been bowled, swap.
+  if (legal > 0 && legal % 6 === 0) {
     return { strikerId: nonStrikerId, nonStrikerId: strikerId };
   }
   return { strikerId, nonStrikerId };
@@ -75,6 +97,7 @@ const demoPlayersB = [
   { id: uid(), name: "G. Ghosh", role: "BOWL" },
 ];
 
+// Seed match
 const seedMatch = {
   id: uid(),
   title: "Spoural '25 — Cricket League",
@@ -85,8 +108,9 @@ const seedMatch = {
     { name: "CE Titans", players: demoPlayersA },
     { name: "IT Falcons", players: demoPlayersB },
   ],
-  toss: { winner: "CE Titans", elected: "BAT" },
+  toss: null, // Will be set via toss dialog
   innings: [
+    // We store initialStrikerId and initialNonStrikerId so undo/replay can reconstruct state
     {
       battingTeam: "CE Titans",
       bowlingTeam: "IT Falcons",
@@ -96,23 +120,31 @@ const seedMatch = {
       total: 0,
       strikerId: demoPlayersA[0].id,
       nonStrikerId: demoPlayersA[1].id,
+      initialStrikerId: demoPlayersA[0].id,
+      initialNonStrikerId: demoPlayersA[1].id,
       bowlerId: demoPlayersB[10].id,
       oversBowled: 0,
+      needBowlerSelection: false,
+      needBatsmanSelection: false,
+      complete: false,
     },
   ],
   currentInningsIndex: 0,
 };
 
-// Subcomponents
+//
+// --- Subcomponents (kept mostly unchanged) ---
+//
+
 function TeamStrip({ name, score, wickets, overs, right, muted = false }) {
   return (
     <div className={`flex items-center ${right ? "justify-end" : "justify-start"} gap-4`}>
-      {!right && <div className="text-lg font-semibold truncate md:text-xl">{name}</div>}
-      <div className={`px-4 py-2 rounded-2xl shadow-sm border ${muted ? "bg-slate-50 text-slate-400" : "bg-white"}`}>
+      {!right && <div className="text-lg font-semibold text-gray-900 truncate md:text-xl">{name}</div>}
+      <div className={`px-4 py-2 rounded-2xl shadow-sm border ${muted ? "bg-gray-50 text-gray-400 border-gray-300" : "bg-white text-gray-900 border-gray-900"}`}>
         <div className="text-2xl font-bold tabular-nums">{score}/{wickets}</div>
-        <div className="text-xs text-slate-500">{overs} ov</div>
+        <div className={`text-xs ${muted ? "text-gray-400" : "text-gray-600"}`}>{overs} ov</div>
       </div>
-      {right && <div className="text-lg font-semibold text-right truncate md:text-xl">{name}</div>}
+      {right && <div className="text-lg font-semibold text-right text-gray-900 truncate md:text-xl">{name}</div>}
     </div>
   );
 }
@@ -135,23 +167,60 @@ function OverProgress({ deliveries }) {
   const legal = deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL");
   const ballsInCurrentOver = legal.length % 6;
 
+  // Current over index
+  const currentOverNum = Math.floor(legal.length / 6);
+  const allInCurrentOver = deliveries.filter((d, i) => {
+    const legalBefore = deliveries.slice(0, i).filter(dd => dd.type !== "WIDE" && dd.type !== "NOBALL").length;
+    const overNum = Math.floor(legalBefore / 6);
+    return overNum === currentOverNum;
+  });
+
   return (
-    <Card className="rounded-2xl">
-      <CardHeader className="pb-0"><CardTitle>Over Progress</CardTitle></CardHeader>
+    <Card className="border-gray-300 rounded-2xl">
+      <CardHeader className="pb-0"><CardTitle className="text-gray-900">Over Progress</CardTitle></CardHeader>
       <CardContent className="pt-3">
         <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 6 }).map((_, i) => {
-            const d = legal.slice(-(ballsInCurrentOver || 6))[i];
-            const isFilled = i < ballsInCurrentOver;
-            const label = d ? (d.type === "WICKET" ? "W" : d.batsmanRuns) : "";
+          {allInCurrentOver.map((d, i) => {
+            let label = "";
+            let bgColor = "bg-gray-900 text-white border-gray-900";
+            if (d.type === "WICKET") {
+              label = "W";
+              bgColor = "bg-red-600 text-white border-red-600";
+            } else if (d.type === "WIDE") {
+              label = d.runs > 1 ? `WD+${d.runs - 1}` : "WD";
+              bgColor = "bg-orange-600 text-white border-orange-600";
+            } else if (d.type === "NOBALL") {
+              label = d.batsmanRuns > 0 ? `NB+${d.batsmanRuns}` : "NB";
+              bgColor = "bg-red-600 text-white border-red-600";
+            } else if (d.type === "BYE") {
+              label = d.runs > 0 ? `B${d.runs}` : "B";
+              bgColor = "bg-blue-600 text-white border-blue-600";
+            } else if (d.type === "LEGBYE") {
+              label = d.runs > 0 ? `LB${d.runs}` : "LB";
+              bgColor = "bg-indigo-600 text-white border-indigo-600";
+            } else {
+              label = d.batsmanRuns;
+            }
+
             return (
-              <div key={i} className={`w-10 h-10 rounded-xl border grid place-items-center text-sm tabular-nums ${isFilled ? "bg-slate-900 text-white" : "bg-white"}`}>
-                {isFilled ? label : ""}
+              <div key={i} className={`w-10 h-10 rounded-xl border-2 grid place-items-center text-xs font-bold tabular-nums ${bgColor}`}>
+                {label}
               </div>
             );
           })}
+
+          {Array.from({ length: Math.max(0, 6 - ballsInCurrentOver) }).map((_, i) => (
+            <div key={`empty-${i}`} className="grid w-10 h-10 text-sm font-bold text-gray-400 bg-white border-2 border-gray-300 rounded-xl place-items-center tabular-nums">
+            </div>
+          ))}
         </div>
-        <div className="mt-3 text-xs text-slate-500">Shows legal balls in current over. Extras do not fill circles.</div>
+        <div className="mt-3 text-xs text-gray-600">
+          <span className="font-semibold text-orange-600">WD</span> = Wide,&nbsp;
+          <span className="font-semibold text-red-600"> NB</span> = No Ball,&nbsp;
+          <span className="font-semibold text-blue-600"> B</span> = Byes,&nbsp;
+          <span className="font-semibold text-indigo-600"> LB</span> = Leg Byes,&nbsp;
+          <span className="font-semibold text-red-600"> W</span> = Wicket
+        </div>
       </CardContent>
     </Card>
   );
@@ -162,15 +231,15 @@ function BattingTable({ deliveries, players, strikerId, nonStrikerId }) {
     const map = new Map();
     players.forEach((p) => map.set(p.id, { runs: 0, balls: 0, fours: 0, sixes: 0, out: false }));
     deliveries.forEach((d) => {
-      const stats = map.get(d.strikerId);
-      if (stats) {
+      const s = map.get(d.strikerId);
+      if (s) {
         if (d.type !== "WIDE" && d.type !== "NOBALL") {
-          stats.balls += 1;
+          s.balls += 1;
         }
-        stats.runs += d.batsmanRuns;
-        if (d.batsmanRuns === 4) stats.fours += 1;
-        if (d.batsmanRuns === 6) stats.sixes += 1;
-        if (d.type === "WICKET") stats.out = true;
+        s.runs += d.batsmanRuns;
+        if (d.batsmanRuns === 4) s.fours += 1;
+        if (d.batsmanRuns === 6) s.sixes += 1;
+        if (d.type === "WICKET") s.out = true;
       }
     });
     return map;
@@ -182,18 +251,18 @@ function BattingTable({ deliveries, players, strikerId, nonStrikerId }) {
     const sr = s.balls ? ((s.runs / s.balls) * 100).toFixed(1) : "0.0";
     const isOnStrike = p.id === strikerId || p.id === nonStrikerId;
     return (
-      <TableRow key={p.id} className={isOnStrike ? "bg-slate-50" : ""}>
-        <TableCell className="font-medium">
+      <TableRow key={p.id} className={isOnStrike ? "bg-gray-50" : ""}>
+        <TableCell className="font-medium text-gray-900">
           {p.name}
-          {p.id === strikerId && <Badge className="ml-2">•</Badge>}
-          {p.id === nonStrikerId && <Badge className="ml-2" variant="secondary">•</Badge>}
+          {p.id === strikerId && <Badge className="ml-2 text-white bg-gray-900 hover:bg-gray-800">•</Badge>}
+          {p.id === nonStrikerId && <Badge className="ml-2 text-white bg-gray-400" variant="secondary">•</Badge>}
         </TableCell>
-        <TableCell className="text-right tabular-nums">{s.runs}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.balls}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.fours}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.sixes}</TableCell>
-        <TableCell className="text-right tabular-nums">{sr}</TableCell>
-        <TableCell className="text-right">{s.out ? "Out" : "Not out"}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.runs}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.balls}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.fours}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.sixes}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{sr}</TableCell>
+        <TableCell className="text-right text-gray-900">{s.out ? "Out" : "Not out"}</TableCell>
       </TableRow>
     );
   };
@@ -221,23 +290,30 @@ function BattingTable({ deliveries, players, strikerId, nonStrikerId }) {
 function BowlingTable({ deliveries, players, currentBowlerId }) {
   const stats = useMemo(() => {
     const map = new Map();
-    players.forEach((p) => map.set(p.id, { ov: 0, runs: 0, wkts: 0, maidens: 0, balls: 0, dots: 0 }));
-    
+    players.forEach((p) => map.set(p.id, { ov: 0, runs: 0, wkts: 0, maidens: 0, balls: 0, dots: 0, wides: 0, noBalls: 0 }));
+
+    // group deliveries by over and bowler
     const groupedByOver = new Map();
+
     deliveries.forEach((d) => {
-      const stats = map.get(d.bowlerId);
-      if (!stats) return;
-      stats.runs += d.runs;
+      const s = map.get(d.bowlerId);
+      if (!s) return;
+      s.runs += d.runs;
       if (d.type !== "WIDE" && d.type !== "NOBALL") {
-        stats.balls += 1;
+        s.balls += 1;
       }
-      if (d.type === "WICKET") stats.wkts += 1;
-      if (d.batsmanRuns === 0 && d.type !== "WIDE" && d.type !== "NOBALL") stats.dots += 1;
+      if (d.type === "WICKET") s.wkts += 1;
+      if (d.batsmanRuns === 0 && d.type !== "WIDE" && d.type !== "NOBALL") s.dots += 1;
       
+      // Track wides and no balls
+      if (d.type === "WIDE") s.wides += 1;
+      if (d.type === "NOBALL") s.noBalls += 1;
+
       const list = groupedByOver.get(d.over) || [];
       list.push(d);
       groupedByOver.set(d.over, list);
     });
+
     groupedByOver.forEach((balls) => {
       const bowlerId = balls[0]?.bowlerId;
       if (!bowlerId) return;
@@ -247,11 +323,13 @@ function BowlingTable({ deliveries, players, currentBowlerId }) {
       const isMaiden = legalRuns === 0;
       if (isMaiden) s.maidens += 1;
     });
+
     players.forEach((p) => {
       const s = map.get(p.id);
       if (!s) return;
       s.ov = Math.floor(s.balls / 6) + (s.balls % 6) / 10;
     });
+
     return map;
   }, [deliveries, players]);
 
@@ -260,17 +338,22 @@ function BowlingTable({ deliveries, players, currentBowlerId }) {
     if (!s) return null;
     const eco = s.balls ? (s.runs / (s.balls / 6)).toFixed(2) : "0.00";
     const isCurrent = p.id === currentBowlerId;
+    const extras = s.wides + s.noBalls;
+    
     return (
-      <TableRow key={p.id} className={isCurrent ? "bg-slate-50" : ""}>
-        <TableCell className="font-medium">
-          {p.name} {isCurrent && <Badge className="ml-2">(current)</Badge>}
+      <TableRow key={p.id} className={isCurrent ? "bg-gray-50" : ""}>
+        <TableCell className="font-medium text-gray-900">
+          {p.name} {isCurrent && <Badge className="ml-2 text-white bg-gray-900 hover:bg-gray-800">(current)</Badge>}
         </TableCell>
-        <TableCell className="text-right tabular-nums">{s.ov.toFixed(1)}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.maidens}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.runs}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.wkts}</TableCell>
-        <TableCell className="text-right tabular-nums">{eco}</TableCell>
-        <TableCell className="text-right tabular-nums">{s.dots}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.ov.toFixed(1)}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.maidens}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.runs}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.wkts}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{eco}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.dots}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.wides}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{s.noBalls}</TableCell>
+        <TableCell className="text-right text-gray-900 tabular-nums">{extras}</TableCell>
       </TableRow>
     );
   };
@@ -286,6 +369,9 @@ function BowlingTable({ deliveries, players, currentBowlerId }) {
           <TableHead className="text-right">W</TableHead>
           <TableHead className="text-right">Econ</TableHead>
           <TableHead className="text-right">Dots</TableHead>
+          <TableHead className="text-right">WD</TableHead>
+          <TableHead className="text-right">NB</TableHead>
+          <TableHead className="text-right">Ex</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -304,15 +390,15 @@ const Commentary = ({ deliveries, players }) => {
       <ul className="grid gap-2">
         {items.map((d) => (
           <li key={d.id} className="flex items-start gap-3">
-            <Badge variant="secondary" className="rounded-xl">
+            <Badge variant="secondary" className="text-white bg-gray-900 rounded-xl">
               {d.over}.{d.ball + 1}
             </Badge>
             <div className="flex-1">
-              <div className="text-sm">
+              <div className="text-sm text-gray-900">
                 {name(d.strikerId)} vs {name(d.bowlerId)} — {d.type === "WICKET" ? "WICKET!" : `${d.runs} run(s)`}
                 {d.batsmanRuns !== d.runs && d.type !== "WICKET" ? ` (${d.batsmanRuns} to batsman)` : ""}
               </div>
-              {d.notes && <div className="text-xs text-slate-500">{d.notes}</div>}
+              {d.notes && <div className="text-xs text-gray-600">{d.notes}</div>}
             </div>
           </li>
         ))}
@@ -323,19 +409,19 @@ const Commentary = ({ deliveries, players }) => {
 
 const LineupCard = ({ title, players }) => {
   return (
-    <Card className="rounded-xl">
+    <Card className="border-gray-300 rounded-xl">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <CardTitle className="text-base text-gray-900">{title}</CardTitle>
       </CardHeader>
       <CardContent>
         <ul className="grid gap-2 text-sm">
           {players.slice(0, 11).map((p, idx) => (
-            <li key={p.id} className="flex items-center justify-between">
+            <li key={p.id} className="flex items-center justify-between text-gray-900">
               <span className="flex items-center gap-2">
-                <span className="w-5 text-slate-400">{idx + 1}.</span>
+                <span className="w-5 text-gray-500">{idx + 1}.</span>
                 {p.name}
               </span>
-              <Badge variant="outline">{p.role}</Badge>
+              <Badge variant="outline" className="text-gray-900 border-gray-400">{p.role}</Badge>
             </li>
           ))}
         </ul>
@@ -344,19 +430,19 @@ const LineupCard = ({ title, players }) => {
   );
 };
 
-const ScorerPanel = ({ 
-  striker, 
-  nonStriker, 
-  bowler, 
-  ballsInOver, 
-  onScore, 
-  onWicket, 
-  onWide, 
-  onNoBall, 
-  onBye, 
-  onLegBye, 
-  onChangeStriker, 
-  onChangeBowler, 
+const ScorerPanel = ({
+  striker,
+  nonStriker,
+  bowler,
+  ballsInOver,
+  onScore,
+  onWicket,
+  onWide,
+  onNoBall,
+  onBye,
+  onLegBye,
+  onChangeStriker,
+  onChangeBowler,
   bowlingOptions,
   needBowlerSelection,
   needBatsmanSelection,
@@ -366,33 +452,32 @@ const ScorerPanel = ({
   const [note, setNote] = useState("");
   const [wicketOpen, setWicketOpen] = useState(false);
   const [dismissalNote, setDismissalNote] = useState("");
-  const [selectedBowler, setSelectedBowler] = useState(undefined);
   const [byesOpen, setByesOpen] = useState(false);
   const [legByesOpen, setLegByesOpen] = useState(false);
+  const [wideOpen, setWideOpen] = useState(false);
+  const [noBallOpen, setNoBallOpen] = useState(false);
   const [bowlerSelectOpen, setBowlerSelectOpen] = useState(false);
   const [batsmanSelectOpen, setBatsmanSelectOpen] = useState(false);
+  const [selectedBowler, setSelectedBowler] = useState(undefined);
 
   useEffect(() => {
-    if (needBowlerSelection) {
-      setBowlerSelectOpen(true);
-    }
+    if (needBowlerSelection) setBowlerSelectOpen(true);
   }, [needBowlerSelection]);
 
   useEffect(() => {
-    if (needBatsmanSelection) {
-      setBatsmanSelectOpen(true);
-    }
+    if (needBatsmanSelection) setBatsmanSelectOpen(true);
   }, [needBatsmanSelection]);
 
   useEffect(() => {
     if (selectedBowler) onChangeBowler(selectedBowler);
-  }, [selectedBowler, onChangeBowler]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBowler]);
 
   return (
-    <Card className="rounded-2xl sticky top-[84px] shadow-lg border-2">
+    <Card className="rounded-2xl sticky top-[84px] shadow-lg border-2 border-gray-300">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-xl">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        <CardTitle className="flex items-center gap-2 text-xl text-gray-900">
+          <div className="w-2 h-2 bg-gray-900 rounded-full animate-pulse"></div>
           Live Scoring
         </CardTitle>
       </CardHeader>
@@ -402,9 +487,7 @@ const ScorerPanel = ({
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl">Select New Bowler</DialogTitle>
-              <DialogDescription>
-                Choose the bowler for the next over
-              </DialogDescription>
+              <DialogDescription>Choose the bowler for the next over</DialogDescription>
             </DialogHeader>
             <ScrollArea className="pr-3 h-60">
               <div className="space-y-2">
@@ -412,15 +495,12 @@ const ScorerPanel = ({
                   <Button
                     key={p.id}
                     variant="outline"
-                    className="justify-start w-full h-12 text-left"
-                    onClick={() => {
-                      setSelectedBowler(p.id);
-                      setBowlerSelectOpen(false);
-                    }}
+                    className="justify-start w-full h-12 text-left text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white"
+                    onClick={() => { setSelectedBowler(p.id); setBowlerSelectOpen(false); }}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span>{p.name}</span>
-                      <Badge variant="secondary">{p.role}</Badge>
+                      <Badge variant="secondary" className="text-gray-900 bg-gray-200">{p.role}</Badge>
                     </div>
                   </Button>
                 ))}
@@ -434,9 +514,7 @@ const ScorerPanel = ({
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl">Select New Batsman</DialogTitle>
-              <DialogDescription>
-                A wicket has fallen. Choose the next batsman.
-              </DialogDescription>
+              <DialogDescription>A wicket has fallen. Choose the next batsman.</DialogDescription>
             </DialogHeader>
             <ScrollArea className="pr-3 h-60">
               <div className="space-y-2">
@@ -444,15 +522,12 @@ const ScorerPanel = ({
                   <Button
                     key={p.id}
                     variant="outline"
-                    className="justify-start w-full h-12 text-left"
-                    onClick={() => {
-                      onSelectNewBatsman(p.id);
-                      setBatsmanSelectOpen(false);
-                    }}
+                    className="justify-start w-full h-12 text-left text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white"
+                    onClick={() => { onSelectNewBatsman(p.id); setBatsmanSelectOpen(false); }}
                   >
                     <div className="flex items-center justify-between w-full">
                       <span>{p.name}</span>
-                      <Badge variant="secondary">{p.role}</Badge>
+                      <Badge variant="secondary" className="text-gray-900 bg-gray-200">{p.role}</Badge>
                     </div>
                   </Button>
                 ))}
@@ -461,24 +536,23 @@ const ScorerPanel = ({
           </DialogContent>
         </Dialog>
 
-        {/* Current Players Info */}
-        <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-4 space-y-2.5">
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 space-y-2.5 border border-gray-200">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-wide uppercase text-slate-600">Striker</span>
-            <Badge className="bg-green-600">{striker}</Badge>
+            <span className="text-xs font-semibold tracking-wide text-gray-700 uppercase">Striker</span>
+            <Badge className="text-white bg-gray-900 hover:bg-gray-800">{striker}</Badge>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-wide uppercase text-slate-600">Non-Striker</span>
-            <Badge variant="secondary">{nonStriker}</Badge>
+            <span className="text-xs font-semibold tracking-wide text-gray-700 uppercase">Non-Striker</span>
+            <Badge className="text-white bg-gray-500 hover:bg-gray-600" variant="secondary">{nonStriker}</Badge>
           </div>
-          <Separator className="my-2" />
+          <Separator className="my-2 bg-gray-300" />
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold tracking-wide uppercase text-slate-600">Bowler</span>
-            <Badge variant="outline">{bowler}</Badge>
+            <span className="text-xs font-semibold tracking-wide text-gray-700 uppercase">Bowler</span>
+            <Badge variant="outline" className="text-gray-900 border-gray-400">{bowler}</Badge>
           </div>
           <div className="flex items-center justify-between pt-2">
-            <span className="text-xs font-semibold tracking-wide uppercase text-slate-600">This Over</span>
-            <Badge variant="outline" className="font-mono text-sm tabular-nums">
+            <span className="text-xs font-semibold tracking-wide text-gray-700 uppercase">This Over</span>
+            <Badge variant="outline" className="font-mono text-sm text-gray-900 border-gray-400 tabular-nums">
               {ballsInOver}/6
             </Badge>
           </div>
@@ -486,17 +560,14 @@ const ScorerPanel = ({
 
         {/* Quick Runs Section */}
         <div className="space-y-2">
-          <h4 className="px-1 text-xs font-bold tracking-wider uppercase text-slate-700">Quick Score</h4>
+          <h4 className="px-1 text-xs font-bold tracking-wider text-gray-700 uppercase">Quick Score</h4>
           <div className="grid grid-cols-7 gap-1">
             {[0, 1, 2, 3, 4, 5, 6].map((r) => (
-              <Button 
-                key={r} 
-                onClick={() => onScore(r, "LEGAL", note)} 
-                variant={r === 0 ? "outline" : r === 4 ? "default" : r === 6 ? "default" : "outline"}
-                className={`h-14 rounded-xl font-bold text-lg transition-all hover:scale-105 ${
-                  r === 4 ? "bg-blue-600 hover:bg-blue-700" : 
-                  r === 6 ? "bg-purple-600 hover:bg-purple-700" : ""
-                }`}
+              <Button
+                key={r}
+                onClick={() => onScore(r, "LEGAL", note)}
+                variant="outline"
+                className="text-lg font-bold text-gray-900 transition-all bg-white border-2 border-gray-900 h-14 rounded-xl hover:scale-105 hover:bg-gray-900 hover:text-white"
               >
                 {r}
               </Button>
@@ -506,33 +577,33 @@ const ScorerPanel = ({
 
         {/* Extras Section */}
         <div className="space-y-2">
-          <h4 className="px-1 text-xs font-bold tracking-wider uppercase text-slate-700">Extras</h4>
+          <h4 className="px-1 text-xs font-bold tracking-wider text-gray-700 uppercase">Extras</h4>
           <div className="grid grid-cols-2 gap-1">
-            <Button 
-              variant="outline" 
-              onClick={() => onWide(1)} 
-              className="text-sm font-semibold text-yellow-700 border-yellow-500 h-11 rounded-xl hover:bg-yellow-50"
+            <Button
+              variant="outline"
+              onClick={() => setWideOpen(true)}
+              className="text-sm font-semibold text-gray-900 bg-white border-2 border-gray-900 h-11 rounded-xl hover:bg-gray-900 hover:text-white"
             >
               Wide
             </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => onNoBall(0)} 
-              className="text-sm font-semibold text-orange-700 border-orange-500 h-11 rounded-xl hover:bg-orange-50"
+            <Button
+              variant="outline"
+              onClick={() => setNoBallOpen(true)}
+              className="text-sm font-semibold text-gray-900 bg-white border-2 border-gray-900 h-11 rounded-xl hover:bg-gray-900 hover:text-white"
             >
               No Ball
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setByesOpen(true)}
-              className="text-sm font-semibold h-11 rounded-xl border-slate-300 hover:bg-slate-50"
+              className="text-sm font-semibold text-gray-900 bg-white border-2 border-gray-900 h-11 rounded-xl hover:bg-gray-900 hover:text-white"
             >
               Byes
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setLegByesOpen(true)}
-              className="text-sm font-semibold h-11 rounded-xl border-slate-300 hover:bg-slate-50"
+              className="text-sm font-semibold text-gray-900 bg-white border-2 border-gray-900 h-11 rounded-xl hover:bg-gray-900 hover:text-white"
             >
               Leg Byes
             </Button>
@@ -548,13 +619,10 @@ const ScorerPanel = ({
             </DialogHeader>
             <div className="grid grid-cols-4 gap-3 py-4">
               {[1, 2, 3, 4].map((r) => (
-                <Button 
-                  key={r} 
-                  onClick={() => {
-                    onBye(r);
-                    setByesOpen(false);
-                  }} 
-                  className="h-16 text-xl font-bold rounded-xl"
+                <Button
+                  key={r}
+                  onClick={() => { onBye(r); setByesOpen(false); }}
+                  className="h-16 text-xl font-bold text-gray-900 bg-white border-2 border-gray-900 rounded-xl hover:bg-gray-900 hover:text-white"
                 >
                   {r}
                 </Button>
@@ -572,13 +640,10 @@ const ScorerPanel = ({
             </DialogHeader>
             <div className="grid grid-cols-4 gap-3 py-4">
               {[1, 2, 3, 4].map((r) => (
-                <Button 
-                  key={r} 
-                  onClick={() => {
-                    onLegBye(r);
-                    setLegByesOpen(false);
-                  }} 
-                  className="h-16 text-xl font-bold rounded-xl"
+                <Button
+                  key={r}
+                  onClick={() => { onLegBye(r); setLegByesOpen(false); }}
+                  className="h-16 text-xl font-bold text-gray-900 bg-white border-2 border-gray-900 rounded-xl hover:bg-gray-900 hover:text-white"
                 >
                   {r}
                 </Button>
@@ -587,12 +652,59 @@ const ScorerPanel = ({
           </DialogContent>
         </Dialog>
 
+        {/* Wide Dialog */}
+        <Dialog open={wideOpen} onOpenChange={setWideOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-orange-600">Wide Ball</DialogTitle>
+              <DialogDescription>Choose additional runs scored (1 run for wide is automatic)</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-5 gap-3 py-4">
+              {[0, 1, 2, 3, 4].map((r) => (
+                <Button
+                  key={r}
+                  onClick={() => { onWide(r); setWideOpen(false); }}
+                  className="h-16 text-xl font-bold text-gray-900 bg-white border-2 border-orange-600 rounded-xl hover:bg-orange-600 hover:text-white"
+                >
+                  {r === 0 ? 'WD' : `WD+${r}`}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-600">
+              WD = 1 run, WD+1 = 2 runs, WD+2 = 3 runs, etc.
+            </p>
+          </DialogContent>
+        </Dialog>
+
+        {/* No Ball Dialog */}
+        <Dialog open={noBallOpen} onOpenChange={setNoBallOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-red-600">No Ball</DialogTitle>
+              <DialogDescription>Choose runs scored off the bat (1 run penalty is automatic)</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-4 gap-3 py-4">
+              {[0, 1, 2, 3, 4, 6].map((r) => (
+                <Button
+                  key={r}
+                  onClick={() => { onNoBall(r); setNoBallOpen(false); }}
+                  className="h-16 text-xl font-bold text-white bg-red-600 border-2 border-red-600 rounded-xl hover:bg-red-700 hover:border-red-700"
+                >
+                  {r === 0 ? 'NB' : `NB+${r}`}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-600">
+              NB = 1 run, NB+1 = 2 runs, NB+4 = 5 runs, NB+6 = 7 runs, etc.
+            </p>
+          </DialogContent>
+        </Dialog>
+
         {/* Wicket Section */}
         <div className="space-y-2">
-          <h4 className="px-1 text-xs font-bold tracking-wider uppercase text-slate-700">Wicket</h4>
-          <Button 
-            variant="destructive" 
-            className="w-full h-12 text-base font-bold transition-all shadow-md rounded-xl hover:shadow-lg" 
+          <h4 className="px-1 text-xs font-bold tracking-wider text-gray-700 uppercase">Wicket</h4>
+          <Button
+            className="w-full h-12 text-base font-bold text-white transition-all bg-gray-900 shadow-md rounded-xl hover:shadow-lg hover:bg-gray-800"
             onClick={() => setWicketOpen(true)}
           >
             <AlertTriangle className="w-5 h-5 mr-2" />
@@ -602,30 +714,27 @@ const ScorerPanel = ({
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-xl">Record Wicket</DialogTitle>
-                <DialogDescription>
-                  Add dismissal details (e.g., bowled, caught, lbw)
-                </DialogDescription>
+                <DialogDescription>Add dismissal details (e.g., bowled, caught, lbw)</DialogDescription>
               </DialogHeader>
               <div className="py-4 space-y-4">
-                <Input 
-                  placeholder="How was the batsman dismissed?" 
-                  value={dismissalNote} 
+                <Input
+                  placeholder="How was the batsman dismissed?"
+                  value={dismissalNote}
                   onChange={(e) => setDismissalNote(e.target.value)}
                   className="h-11"
                 />
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setWicketOpen(false)} className="rounded-lg">
+                <Button variant="outline" onClick={() => setWicketOpen(false)} className="text-gray-900 bg-white border-2 border-gray-900 rounded-lg hover:bg-gray-100">
                   Cancel
                 </Button>
-                <Button 
-                  variant="destructive"
+                <Button
                   onClick={() => {
                     onWicket(dismissalNote);
                     setDismissalNote("");
                     setWicketOpen(false);
                   }}
-                  className="rounded-lg"
+                  className="text-white bg-gray-900 border-2 border-gray-900 rounded-lg hover:bg-gray-800"
                 >
                   Confirm Wicket
                 </Button>
@@ -638,28 +747,28 @@ const ScorerPanel = ({
 
         {/* Commentary Note */}
         <div className="space-y-2">
-          <h4 className="px-1 text-xs font-bold tracking-wider uppercase text-slate-700">Commentary Note</h4>
-          <Input 
-            placeholder="Add commentary for this ball..." 
-            value={note} 
-            onChange={(e) => setNote(e.target.value)} 
-            className="h-10 text-sm rounded-xl"
+          <h4 className="px-1 text-xs font-bold tracking-wider text-gray-700 uppercase">Commentary Note</h4>
+          <Input
+            placeholder="Add commentary for this ball..."
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="h-10 text-sm text-gray-900 border-gray-300 rounded-xl"
           />
         </div>
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-2 pt-2">
-          <Button 
-            variant="outline" 
-            onClick={onChangeStriker} 
-            className="font-semibold border-2 h-11 rounded-xl hover:bg-indigo-50 hover:border-indigo-500 hover:text-indigo-700"
+          <Button
+            variant="outline"
+            onClick={onChangeStriker}
+            className="font-semibold text-gray-900 bg-white border-2 border-gray-900 h-11 rounded-xl hover:bg-gray-900 hover:text-white"
           >
             Rotate Strike
           </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => alert("Next over (manual bowler change)")} 
-            className="font-semibold border-2 h-11 rounded-xl hover:bg-green-50 hover:border-green-500 hover:text-green-700"
+          <Button
+            variant="outline"
+            onClick={() => alert("Next over (manual bowler change)")}
+            className="font-semibold text-gray-900 bg-white border-2 border-gray-900 h-11 rounded-xl hover:bg-gray-900 hover:text-white"
           >
             End Over
           </Button>
@@ -669,31 +778,44 @@ const ScorerPanel = ({
   );
 };
 
-// Core Component
+//
+// --- Core Component ---
+//
+
 const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
   const [match, setMatch] = useState(initialMatch || seedMatch);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [winner, setWinner] = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [showTossDialog, setShowTossDialog] = useState(!initialMatch && !seedMatch.toss);
+  const [tossWinner, setTossWinner] = useState("");
+  const [tossDecision, setTossDecision] = useState("");
   const current = match.innings[match.currentInningsIndex];
 
-  // Auto-save to database whenever match state changes
+  //
+  // Auto-save to database whenever match state changes (debounced)
+  //
   useEffect(() => {
     const syncToDatabase = async () => {
       if (!matchId || isSyncing) return;
-      
+
       try {
         setIsSyncing(true);
-        
+
+        const firstInnings = match.innings[0];
+        const secondInnings = match.innings.length > 1 ? match.innings[1] : null;
+
         const scoreData = {
           teamA: {
-            runs: current.total,
-            wickets: current.wickets
+            runs: firstInnings.total,
+            wickets: firstInnings.wickets
           },
           teamB: {
-            runs: 0,
-            wickets: 0
+            runs: secondInnings ? secondInnings.total : 0,
+            wickets: secondInnings ? secondInnings.wickets : 0
           },
           overs: formatOvers(current.deliveries),
-          status: 'live'
+          status: match.innings.length > 1 ? '2nd Innings' : '1st Innings'
         };
 
         console.log('[CricketScoringUI] Syncing score to database:', scoreData);
@@ -706,102 +828,371 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       }
     };
 
-    // Debounce sync to avoid too many requests
     const timeoutId = setTimeout(syncToDatabase, 1000);
     return () => clearTimeout(timeoutId);
   }, [match, matchId, current, isSyncing]);
 
-  const striker = useMemo(
-    () => match.teams.flatMap((t) => t.players).find((p) => p.id === current.strikerId) || null,
-    [match, current.strikerId]
-  );
+  // Handle toss and arrange teams accordingly
+  const handleTossSubmit = useCallback(() => {
+    if (!tossWinner || !tossDecision) {
+      alert("Please select toss winner and decision");
+      return;
+    }
 
-  const nonStriker = useMemo(
-    () => match.teams.flatMap((t) => t.players).find((p) => p.id === current.nonStrikerId) || null,
-    [match, current.nonStrikerId]
-  );
+    setMatch((prev) => {
+      const copy = { ...prev };
+      
+      // Set toss information
+      copy.toss = {
+        winner: tossWinner,
+        elected: tossDecision
+      };
 
-  const bowler = useMemo(
-    () => match.teams.flatMap((t) => t.players).find((p) => p.id === current.bowlerId) || null,
-    [match, current.bowlerId]
-  );
+      // Determine batting and bowling teams
+      let battingTeamName, bowlingTeamName;
+      if (tossDecision === "BAT") {
+        battingTeamName = tossWinner;
+        bowlingTeamName = copy.teams.find(t => t.name !== tossWinner)?.name || '';
+      } else {
+        bowlingTeamName = tossWinner;
+        battingTeamName = copy.teams.find(t => t.name !== tossWinner)?.name || '';
+      }
+
+      // Update first innings with correct teams
+      copy.innings[0].battingTeam = battingTeamName;
+      copy.innings[0].bowlingTeam = bowlingTeamName;
+
+      // Set initial striker, non-striker from batting team
+      const battingTeam = copy.teams.find(t => t.name === battingTeamName);
+      if (battingTeam && battingTeam.players.length >= 2) {
+        copy.innings[0].strikerId = battingTeam.players[0].id;
+        copy.innings[0].nonStrikerId = battingTeam.players[1].id;
+        copy.innings[0].initialStrikerId = battingTeam.players[0].id;
+        copy.innings[0].initialNonStrikerId = battingTeam.players[1].id;
+      }
+
+      // Set initial bowler from bowling team
+      const bowlingTeam = copy.teams.find(t => t.name === bowlingTeamName);
+      if (bowlingTeam && bowlingTeam.players.length >= 1) {
+        copy.innings[0].bowlerId = bowlingTeam.players[10]?.id || bowlingTeam.players[0]?.id || '';
+      }
+
+      return copy;
+    });
+
+    setShowTossDialog(false);
+  }, [tossWinner, tossDecision]);
+
+  //
+  // Calculate player statistics from all innings
+  //
+  const calculatePlayerStats = useCallback(() => {
+    const playerStatsMap = new Map();
+
+    // Process both innings
+    match.innings.forEach((innings) => {
+      const battingTeam = match.teams.find(t => t.name === innings.battingTeam);
+      const bowlingTeam = match.teams.find(t => t.name === innings.bowlingTeam);
+
+      // Calculate batting stats
+      const battingStats = new Map();
+      battingTeam.players.forEach((p) => {
+        battingStats.set(p.id, { runs: 0, balls: 0 });
+      });
+
+      innings.deliveries.forEach((d) => {
+        const batter = battingStats.get(d.strikerId);
+        if (batter) {
+          if (d.type !== "WIDE" && d.type !== "NOBALL") {
+            batter.balls += 1;
+          }
+          batter.runs += d.batsmanRuns;
+        }
+      });
+
+      // Add batting stats to player map
+      battingStats.forEach((stats, playerId) => {
+        const player = battingTeam.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        if (!playerStatsMap.has(player._id)) {
+          playerStatsMap.set(player._id, {
+            playerId: player._id,
+            teamId: battingTeam._id,
+            name: player.name,
+            runs: 0,
+            wickets: 0
+          });
+        }
+        const playerData = playerStatsMap.get(player._id);
+        playerData.runs += stats.runs;
+      });
+
+      // Calculate bowling stats
+      const bowlingStats = new Map();
+      bowlingTeam.players.forEach((p) => {
+        bowlingStats.set(p.id, { wickets: 0 });
+      });
+
+      innings.deliveries.forEach((d) => {
+        const bowler = bowlingStats.get(d.bowlerId);
+        if (bowler && d.type === "WICKET") {
+          bowler.wickets += 1;
+        }
+      });
+
+      // Add bowling stats to player map
+      bowlingStats.forEach((stats, playerId) => {
+        const player = bowlingTeam.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        if (!playerStatsMap.has(player._id)) {
+          playerStatsMap.set(player._id, {
+            playerId: player._id,
+            teamId: bowlingTeam._id,
+            name: player.name,
+            runs: 0,
+            wickets: 0
+          });
+        }
+        const playerData = playerStatsMap.get(player._id);
+        playerData.wickets += stats.wickets;
+      });
+    });
+
+    return Array.from(playerStatsMap.values());
+  }, [match]);
+
+  //
+  // Save completed match to database
+  //
+  const saveCompletedMatch = useCallback(async (winnerTeam, margin) => {
+    try {
+      // Build result string
+      let resultText = '';
+      if (winnerTeam === 'TIE') {
+        resultText = 'Match Tied';
+      } else {
+        resultText = `${winnerTeam} won by ${margin}`;
+      }
+
+      // Prepare final score data
+      const innings1 = match.innings[0];
+      const innings2 = match.innings[1];
+
+      const scoreData = {
+        teamA: {
+          runs: innings1.battingTeam === match.teams[0].name ? innings1.total : innings2.total,
+          wickets: innings1.battingTeam === match.teams[0].name ? innings1.wickets : innings2.wickets
+        },
+        teamB: {
+          runs: innings1.battingTeam === match.teams[1].name ? innings1.total : innings2.total,
+          wickets: innings1.battingTeam === match.teams[1].name ? innings1.wickets : innings2.wickets
+        },
+        overs: `${innings2.oversBowled}.${legalBallsThisOver}`,
+        status: 'completed',
+        result: resultText
+      };
+
+      console.log('[CricketScoring] Saving completed match:', { matchId: match.matchId, scoreData });
+      
+      await cricketAPIService.updateMatchScore(match.matchId, scoreData);
+      
+      // Calculate and save player statistics
+      const playerStats = calculatePlayerStats();
+      console.log('[CricketScoring] Saving player statistics:', playerStats);
+      
+      await cricketAPIService.updatePlayerStats(match.matchId, playerStats);
+      
+      console.log('[CricketScoring] Match and player stats saved successfully to database');
+    } catch (error) {
+      console.error('[CricketScoring] Failed to save completed match:', error);
+      // Don't block the celebration, just log the error
+      alert(`Match completed but failed to save to database: ${error.message}`);
+    }
+  }, [match, legalBallsThisOver, calculatePlayerStats]);
+
+  //
+  // Helpers to find player entities across teams
+  //
+  const findPlayer = useCallback((playerId) => {
+    return match.teams.flatMap(t => t.players).find(p => p.id === playerId) || null;
+  }, [match]);
+
+  const striker = useMemo(() => findPlayer(current.strikerId) || null, [findPlayer, current.strikerId]);
+  const nonStriker = useMemo(() => findPlayer(current.nonStrikerId) || null, [findPlayer, current.nonStrikerId]);
+  const bowler = useMemo(() => findPlayer(current.bowlerId) || null, [findPlayer, current.bowlerId]);
 
   const legalBallsThisOver = useMemo(() => {
-    const legal = current.deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL");
-    const count = legal.length % 6;
+    const legal = current.deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
+    const count = legal % 6;
     return count;
   }, [current.deliveries]);
 
-  const handleBall = useCallback(
-    (opts) => {
-      if (!current.strikerId || !current.nonStrikerId || !current.bowlerId) {
-        alert("Set striker/non-striker/bowler before scoring.");
-        return;
+  // Returns the player list for the current batting team
+  const currentBattingPlayers = useMemo(() => {
+    const team = match.teams.find(t => t.name === current.battingTeam);
+    return team ? team.players : [];
+  }, [match.teams, current.battingTeam]);
+
+  // Get available batsmen (those who haven't come to the crease yet)
+  const getAvailableBatsmen = useCallback(() => {
+    const battedIds = new Set();
+    current.deliveries.forEach((d) => {
+      battedIds.add(d.strikerId);
+    });
+    if (current.strikerId) battedIds.add(current.strikerId);
+    if (current.nonStrikerId) battedIds.add(current.nonStrikerId);
+
+    return currentBattingPlayers.filter((p) => !battedIds.has(p.id));
+  }, [current, currentBattingPlayers]);
+
+  // Recompute striker/non-striker by replaying deliveries from initial striker/nonStriker
+  const replayStrikersFromInitial = useCallback((inn) => {
+    let s = inn.initialStrikerId || inn.strikerId || '';
+    let n = inn.initialNonStrikerId || inn.nonStrikerId || '';
+    inn.deliveries.forEach((d, idx) => {
+      // For byes, leg byes, and wides - use total runs for strike rotation
+      const runsForRotation = (d.type === "BYE" || d.type === "LEGBYE" || d.type === "WIDE") 
+        ? d.runs 
+        : d.batsmanRuns;
+      ({ strikerId: s, nonStrikerId: n } = swapStrikeIfNeeded(s, n, runsForRotation, d.type));
+      ({ strikerId: s, nonStrikerId: n } = endOfOverSwap(s, n, inn.deliveries.slice(0, idx + 1)));
+      // if wicket: we assume the striker was dismissed — the code that applies a new batsman
+      // will set striker/nonStriker correctly when a batsman is selected.
+      if (d.type === "WICKET") {
+        // mark striker as out; next batsman logic elsewhere will replace striker when selected
       }
+    });
+    return { strikerId: s, nonStrikerId: n };
+  }, []);
 
-      const now = Date.now();
-      const legalBefore = current.deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
-      const over = Math.floor(legalBefore / 6);
-      const ball = legalBefore % 6;
-      const batsmanRuns = opts.bye || opts.legbye ? 0 : opts.runs;
+  //
+  // Core: handleBall
+  //
+  const handleBall = useCallback((opts) => {
+    // Block scoring if innings complete
+    if (current.complete) {
+      alert("This innings is complete. Start next innings to continue.");
+      return;
+    }
 
-      const del = {
-        id: uid(),
-        over,
-        ball,
-        runs: opts.runs + (opts.type === "NOBALL" ? 1 : 0) + (opts.type === "WIDE" ? 1 : 0),
-        batsmanRuns,
-        type: opts.type,
-        notes: opts.notes,
-        strikerId: current.strikerId,
-        nonStrikerId: current.nonStrikerId,
-        bowlerId: current.bowlerId || '',
-        timestamp: now,
-      };
+    if (!current.strikerId || !current.nonStrikerId || !current.bowlerId) {
+      alert("Set striker/non-striker/bowler before scoring.");
+      return;
+    }
 
-      const nextDeliveries = [...current.deliveries, del];
-      const total = nextDeliveries.reduce((acc, d) => acc + d.runs, 0);
-      const wickets = nextDeliveries.filter((d) => d.type === "WICKET").length;
+    const now = Date.now();
+    const legalBefore = current.deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
+    const over = Math.floor(legalBefore / 6);
+    const ball = legalBefore % 6;
 
-      let { strikerId, nonStrikerId } = swapStrikeIfNeeded(
-        current.strikerId,
-        current.nonStrikerId,
-        del.batsmanRuns,
-        del.type
-      );
+    // Batsman gets runs only if it's not a bye, leg bye, or wide
+    const batsmanRuns = (opts.bye || opts.legbye || opts.type === "WIDE") ? 0 : opts.runs;
 
-      const wasEndOfOver = endOfOverSwap(strikerId, nonStrikerId, del.type, nextDeliveries);
-      strikerId = wasEndOfOver.strikerId;
-      nonStrikerId = wasEndOfOver.nonStrikerId;
+    const extraForNoBall = opts.type === "NOBALL" ? 1 : 0;
+    const extraForWide = opts.type === "WIDE" ? 1 : 0;
 
-      // Check if over is complete
-      const legalAfter = nextDeliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
-      const isOverComplete = legalAfter % 6 === 0 && del.type !== "WIDE" && del.type !== "NOBALL";
+    const del = {
+      id: uid(),
+      over,
+      ball,
+      runs: (opts.runs || 0) + extraForNoBall + extraForWide,
+      batsmanRuns,
+      type: opts.type || "LEGAL",
+      notes: opts.notes || "",
+      strikerId: current.strikerId,
+      nonStrikerId: current.nonStrikerId,
+      bowlerId: current.bowlerId || '',
+      timestamp: now,
+    };
 
-      setMatch((prev) => {
-        const copy = { ...prev };
-        const inn = { ...copy.innings[copy.currentInningsIndex] };
-        inn.deliveries = nextDeliveries;
-        inn.total = total;
-        inn.wickets = wickets;
-        inn.strikerId = strikerId;
-        inn.nonStrikerId = nonStrikerId;
-        const legal = nextDeliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
-        inn.oversBowled = Math.floor(legal / 6);
-        
-        // Mark that we need bowler selection after over
-        inn.needBowlerSelection = isOverComplete;
-        
-        // Mark that we need batsman selection after wicket
-        inn.needBatsmanSelection = del.type === "WICKET";
-        
-        copy.innings[copy.currentInningsIndex] = inn;
-        return copy;
-      });
-    },
-    [current]
-  );
+    const nextDeliveries = [...current.deliveries, del];
+    const total = nextDeliveries.reduce((acc, d) => acc + d.runs, 0);
+    const wickets = nextDeliveries.filter((d) => d.type === "WICKET").length;
 
+    // Determine striker swap due to runs
+    // For byes, leg byes, and wides - use total runs for strike rotation
+    const runsForStrikeRotation = (del.type === "BYE" || del.type === "LEGBYE" || del.type === "WIDE") 
+      ? del.runs 
+      : del.batsmanRuns;
+    
+    let { strikerId, nonStrikerId } = swapStrikeIfNeeded(
+      current.strikerId,
+      current.nonStrikerId,
+      runsForStrikeRotation,
+      del.type
+    );
+
+    // End-of-over swap calculated from deliveries after this ball
+    ({ strikerId, nonStrikerId } = endOfOverSwap(strikerId, nonStrikerId, nextDeliveries));
+
+    // Check if innings is complete (either 10 wickets OR overs limit reached)
+    const legalAfter = nextDeliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
+    const isOversLimitReached = legalAfter >= (current.oversLimit * 6);
+    const isAllOut = wickets >= 10;
+    
+    // Check if 2nd innings and chasing team has won
+    const is2ndInnings = match.currentInningsIndex === 1;
+    const chasingTeamWon = is2ndInnings && total >= match.innings[0].total + 1;
+    
+    const inningsComplete = isOversLimitReached || isAllOut || chasingTeamWon;
+    
+    // Check if over is complete (6 legal balls bowled in current over)
+    const isOverComplete = (legalAfter % 6 === 0) && legalAfter > 0 && del.type !== "WIDE" && del.type !== "NOBALL";
+
+    setMatch((prev) => {
+      const copy = { ...prev };
+      const inn = { ...copy.innings[copy.currentInningsIndex] };
+      inn.deliveries = nextDeliveries;
+      inn.total = total;
+      inn.wickets = wickets;
+      inn.strikerId = strikerId;
+      inn.nonStrikerId = nonStrikerId;
+      inn.oversBowled = Math.floor(legalAfter / 6);
+      
+      // Only allow bowler change if over is complete AND innings is not complete
+      inn.needBowlerSelection = inningsComplete ? false : isOverComplete;
+      inn.needBatsmanSelection = del.type === "WICKET" && !inningsComplete;
+      inn.complete = inningsComplete;
+      copy.innings[copy.currentInningsIndex] = inn;
+      
+      // Determine winner if 2nd innings is complete
+      if (is2ndInnings && inningsComplete) {
+        if (chasingTeamWon) {
+          copy.winner = current.battingTeam;
+          copy.winMargin = `${10 - wickets} wickets`;
+        } else if (total < match.innings[0].total) {
+          copy.winner = current.bowlingTeam;
+          copy.winMargin = `${match.innings[0].total - total} runs`;
+        } else if (total === match.innings[0].total) {
+          copy.winner = "TIE";
+          copy.winMargin = "Match Tied";
+        }
+      }
+      
+      return copy;
+    });
+    
+    // Show celebration and save match if won
+    if (is2ndInnings && chasingTeamWon) {
+      setWinner(current.battingTeam);
+      setShowCelebration(true);
+      saveCompletedMatch(current.battingTeam, `${10 - wickets} wickets`);
+    } else if (is2ndInnings && inningsComplete && total < match.innings[0].total) {
+      setWinner(current.bowlingTeam);
+      setShowCelebration(true);
+      saveCompletedMatch(current.bowlingTeam, `${match.innings[0].total - total} runs`);
+    } else if (is2ndInnings && inningsComplete && total === match.innings[0].total) {
+      setWinner("TIE");
+      setShowCelebration(true);
+      saveCompletedMatch("TIE", "Match Tied");
+    }
+  }, [current, setMatch, match.currentInningsIndex, match.innings, saveCompletedMatch]);
+
+  //
+  // Undo last delivery: reconstruct striker/non-striker from initial state
+  //
   const undoLast = useCallback(() => {
     setMatch((prev) => {
       const copy = { ...prev };
@@ -811,37 +1202,85 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       inn.total = inn.deliveries.reduce((a, d) => a + d.runs, 0);
       inn.wickets = inn.deliveries.filter((d) => d.type === "WICKET").length;
 
-      const baseStriker = seedMatch.innings[0].strikerId || '';
-      const baseNonStriker = seedMatch.innings[0].nonStrikerId || '';
-      let s = baseStriker, n = baseNonStriker;
-      inn.deliveries.forEach((d, idx) => {
-        ({ strikerId: s, nonStrikerId: n } = swapStrikeIfNeeded(s, n, d.batsmanRuns, d.type));
-        ({ strikerId: s, nonStrikerId: n } = endOfOverSwap(s, n, d.type, inn.deliveries.slice(0, idx + 1)));
-      });
-      inn.strikerId = s;
-      inn.nonStrikerId = n;
+      // Recompute striker/non-striker by replay
+      const { strikerId, nonStrikerId } = replayStrikersFromInitial(inn);
+      inn.strikerId = strikerId;
+      inn.nonStrikerId = nonStrikerId;
+
       const legal = inn.deliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
       inn.oversBowled = Math.floor(legal / 6);
+
+      // if undo removed the wicket that required batsman selection, clear needBatsmanSelection
+      inn.needBatsmanSelection = inn.deliveries.some(d => d.type === "WICKET" && d === inn.deliveries[inn.deliveries.length - 1]) ? true : false;
+      inn.needBowlerSelection = false;
+      inn.complete = false; // if you undo a ball after innings complete, reopen innings (user can decide)
       copy.innings[copy.currentInningsIndex] = inn;
       return copy;
     });
-  }, []);
+  }, [replayStrikersFromInitial]);
+
+  //
+  // Start 2nd innings (manual; because you chose B)
+  //
+  const startSecondInnings = useCallback(() => {
+    if (match.innings.length > 1) {
+      alert("2nd innings already exists!");
+      return;
+    }
+
+    const firstInnings = match.innings[0];
+
+    if (!firstInnings.complete) {
+      // Prevent starting 2nd innings prematurely
+      if (!(firstInnings.wickets >= 10 || firstInnings.oversBowled >= firstInnings.oversLimit)) {
+        if (!window.confirm("First innings is not complete yet. Do you still want to force start the 2nd innings?")) {
+          return;
+        }
+      }
+    }
+
+    const targetScore = firstInnings.total + 1;
+
+    // Find team objects
+    const battingTeamObj = match.teams.find(t => t.name === firstInnings.bowlingTeam);
+    const bowlingTeamObj = match.teams.find(t => t.name === firstInnings.battingTeam);
+
+    const secondInnings = {
+      battingTeam: firstInnings.bowlingTeam,
+      bowlingTeam: firstInnings.battingTeam,
+      oversLimit: firstInnings.oversLimit,
+      deliveries: [],
+      wickets: 0,
+      total: 0,
+      strikerId: battingTeamObj?.players?.[0]?.id || '',
+      nonStrikerId: battingTeamObj?.players?.[1]?.id || '',
+      initialStrikerId: battingTeamObj?.players?.[0]?.id || '',
+      initialNonStrikerId: battingTeamObj?.players?.[1]?.id || '',
+      bowlerId: bowlingTeamObj?.players?.[bowlingTeamObj.players.length - 1]?.id || '',
+      oversBowled: 0,
+      target: targetScore,
+      needBowlerSelection: false,
+      needBatsmanSelection: false,
+      complete: false,
+    };
+
+    setMatch((prev) => ({
+      ...prev,
+      innings: [...prev.innings, secondInnings],
+      currentInningsIndex: 1,
+      status: "2nd Innings"
+    }));
+  }, [match]);
+
+  const switchInnings = useCallback((index) => {
+    if (index < 0 || index >= match.innings.length) return;
+    setMatch((prev) => ({ ...prev, currentInningsIndex: index }));
+  }, [match.innings.length]);
 
   const currentRR = calcRR(current.total, current.deliveries);
   const oversFmt = formatOvers(current.deliveries);
 
-  // Get available batsmen (those who haven't batted yet)
-  const getAvailableBatsmen = useCallback(() => {
-    const battedIds = new Set();
-    current.deliveries.forEach((d) => {
-      battedIds.add(d.strikerId);
-    });
-    battedIds.add(current.strikerId);
-    battedIds.add(current.nonStrikerId);
-    
-    return match.teams[0].players.filter((p) => !battedIds.has(p.id));
-  }, [current, match.teams]);
-
+  // select new batsman after wicket
   const handleSelectNewBatsman = useCallback((playerId) => {
     setMatch((prev) => {
       const copy = { ...prev };
@@ -865,31 +1304,44 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
     });
   }, []);
 
+  // Render
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
-      <header className="sticky top-0 z-20 border-b backdrop-blur bg-white/70">
+    <div className="flex flex-col min-h-screen text-gray-900 bg-white">
+      <header className="sticky top-0 z-20 border-b border-gray-300 backdrop-blur bg-white/90">
         <div className="flex items-center justify-between max-w-full gap-3 px-6 py-3">
           <div className="flex items-center gap-3">
-            <div className="grid font-bold text-white size-9 rounded-2xl bg-slate-900 place-items-center">S</div>
+            <div className="grid font-bold text-white bg-gray-900 size-9 rounded-2xl place-items-center">S</div>
             <div>
-              <div className="text-lg font-semibold leading-tight">Spoural — Live Scoring</div>
-              <div className="text-xs text-slate-500">
+              <div className="text-lg font-semibold leading-tight text-gray-900">Spoural — Live Scoring</div>
+              <div className="text-xs text-gray-600">
                 Cricket • {matchId ? 'Connected to Database' : 'Demo Mode'}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="px-3 py-1 rounded-xl">
+            <div className="flex items-center gap-1 px-2 py-1 text-sm font-semibold text-gray-900 bg-white border-2 border-gray-900 rounded-lg">
+              {match.innings.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => switchInnings(idx)}
+                  className={`px-3 py-1 rounded transition-all ${ match.currentInningsIndex === idx ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-200' }`}
+                >
+                  {idx === 0 ? '1st' : '2nd'} Innings
+                </button>
+              ))}
+            </div>
+
+            <Badge className="px-3 py-1 text-white bg-gray-900 rounded-xl hover:bg-gray-800">
               <Radio className="mr-1 h-3.5 w-3.5" />
               LIVE
             </Badge>
             {isSyncing && (
-              <Badge variant="outline" className="px-3 py-1 rounded-xl">
-                <div className="w-2 h-2 mr-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <Badge variant="outline" className="px-3 py-1 text-gray-900 bg-white border-2 border-gray-900 rounded-xl">
+                <div className="w-2 h-2 mr-2 bg-gray-900 rounded-full animate-pulse"></div>
                 Syncing...
               </Badge>
             )}
-            <Button variant="outline" size="sm" onClick={undoLast}>
+            <Button variant="outline" size="sm" onClick={undoLast} className="text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white">
               <RotateCcw className="w-4 h-4 mr-2" />
               Undo
             </Button>
@@ -899,10 +1351,10 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
 
       <main className="flex-1 max-w-full px-6 py-6">
         <div className="space-y-6">
-          <Card className="shadow-sm rounded-2xl">
+          <Card className="border-gray-300 shadow-sm rounded-2xl">
             <CardHeader className="pb-2">
-              <CardTitle className="text-xl">{match.title}</CardTitle>
-              <div className="text-sm text-slate-500">
+              <CardTitle className="text-xl text-gray-900">{match.title}</CardTitle>
+              <div className="text-sm text-gray-600">
                 {match.venue} • {new Date(match.startTimeISO).toLocaleString()}
               </div>
             </CardHeader>
@@ -913,19 +1365,51 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
                   right={false}
                   score={match.innings[0].total}
                   wickets={match.innings[0].wickets}
-                  overs={oversFmt}
+                  overs={`${Math.floor(match.innings[0].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length / 6)}.${match.innings[0].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length % 6}/${match.innings[0].oversLimit}`}
                 />
-                <div className="hidden text-center md:block text-slate-500">vs</div>
+                <div className="hidden text-center text-gray-500 md:block">vs</div>
                 <TeamStrip
                   name={match.teams[1].name}
                   right
-                  score={0}
-                  wickets={0}
-                  overs={"0.0"}
-                  muted
+                  score={match.innings.length > 1 ? match.innings[1].total : 0}
+                  wickets={match.innings.length > 1 ? match.innings[1].wickets : 0}
+                  overs={match.innings.length > 1 ?
+                    `${Math.floor(match.innings[1].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length / 6)}.${match.innings[1].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length % 6}/${match.innings[1].oversLimit}`
+                    : `0.0/${match.innings[0].oversLimit}`}
+                  muted={match.innings.length === 1}
                 />
               </div>
-              <div className="mt-3 text-sm text-slate-600">
+
+              {/* Target display if 2nd innings */}
+              {match.innings.length > 1 && match.currentInningsIndex === 1 && (
+                <div className="mt-2 text-sm font-semibold text-center text-gray-900">
+                  Target: {match.innings[1].target} | Need {Math.max(0, match.innings[1].target - match.innings[1].total)} runs from {(match.innings[0].oversLimit * 6) - match.innings[1].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length} balls
+                </div>
+              )}
+
+              {/* Show 1st Innings Complete Summary and a Start 2nd Innings button (manual) */}
+              {match.innings.length === 1 && match.innings[0].complete && (
+                <div className="p-3 mt-3 border-2 border-gray-300 rounded-lg bg-gray-50">
+                  <div className="text-xs font-semibold text-gray-600 uppercase">1st Innings Complete</div>
+                  <div className="mt-1 text-sm font-bold text-gray-900">
+                    {match.teams[0].name}: {match.innings[0].total}/{match.innings[0].wickets}
+                    <span className="ml-2 text-gray-600">
+                      ({Math.floor(match.innings[0].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length / 6)}.{match.innings[0].deliveries.filter(d => d.type !== "WIDE" && d.type !== "NOBALL").length % 6} overs)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <Button onClick={startSecondInnings} className="w-full text-white bg-gray-900 border-2 border-gray-900 hover:bg-white hover:text-gray-900">
+                      Start 2nd Innings
+                    </Button>
+                    <Button onClick={() => alert("View detailed scorecard coming soon")} variant="outline" className="w-full text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white">
+                      View Scorecard
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-3 text-sm text-gray-700">
                 Toss: {match.toss?.winner} elected to {match.toss?.elected === "BAT" ? "bat" : "bowl"}.
               </div>
             </CardContent>
@@ -936,43 +1420,43 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
               <ScoreStrip total={current.total} wickets={current.wickets} overs={oversFmt} rr={currentRR} />
               <OverProgress deliveries={current.deliveries} />
 
-              <Card className="rounded-2xl">
+              <Card className="border-gray-300 rounded-2xl">
                 <CardHeader>
-                  <CardTitle>Batting — {current.battingTeam}</CardTitle>
+                  <CardTitle className="text-gray-900">Batting — {current.battingTeam}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <BattingTable
                     deliveries={current.deliveries}
-                    players={match.teams[0].players}
+                    players={currentBattingPlayers}
                     strikerId={current.strikerId}
                     nonStrikerId={current.nonStrikerId}
                   />
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl">
+              <Card className="border-gray-300 rounded-2xl">
                 <CardHeader>
-                  <CardTitle>Bowling — {current.bowlingTeam}</CardTitle>
+                  <CardTitle className="text-gray-900">Bowling — {current.bowlingTeam}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <BowlingTable
                     deliveries={current.deliveries}
-                    players={match.teams[1].players}
+                    players={(match.teams.find(t => t.name === current.bowlingTeam) || { players: [] }).players}
                     currentBowlerId={current.bowlerId}
                   />
                 </CardContent>
               </Card>
 
               <Tabs defaultValue="commentary" className="rounded-2xl">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="commentary">Commentary</TabsTrigger>
-                  <TabsTrigger value="lineups">Line-ups</TabsTrigger>
-                  <TabsTrigger value="info">Info</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 bg-white border-2 border-gray-900">
+                  <TabsTrigger value="commentary" className="text-gray-900 data-[state=active]:bg-gray-900 data-[state=active]:text-white">Commentary</TabsTrigger>
+                  <TabsTrigger value="lineups" className="text-gray-900 data-[state=active]:bg-gray-900 data-[state=active]:text-white">Line-ups</TabsTrigger>
+                  <TabsTrigger value="info" className="text-gray-900 data-[state=active]:bg-gray-900 data-[state=active]:text-white">Info</TabsTrigger>
                 </TabsList>
                 <TabsContent value="commentary">
-                  <Card className="rounded-2xl">
+                  <Card className="border-gray-300 rounded-2xl">
                     <CardHeader>
-                      <CardTitle>Ball-by-ball</CardTitle>
+                      <CardTitle className="text-gray-900">Ball-by-ball</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <Commentary
@@ -983,9 +1467,9 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
                   </Card>
                 </TabsContent>
                 <TabsContent value="lineups">
-                  <Card className="rounded-2xl">
+                  <Card className="border-gray-300 rounded-2xl">
                     <CardHeader>
-                      <CardTitle>Playing XIs</CardTitle>
+                      <CardTitle className="text-gray-900">Playing XIs</CardTitle>
                     </CardHeader>
                     <CardContent className="grid gap-6 md:grid-cols-2">
                       <LineupCard title={match.teams[0].name} players={match.teams[0].players} />
@@ -994,11 +1478,11 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
                   </Card>
                 </TabsContent>
                 <TabsContent value="info">
-                  <Card className="rounded-2xl">
+                  <Card className="border-gray-300 rounded-2xl">
                     <CardHeader>
-                      <CardTitle>Match Info</CardTitle>
+                      <CardTitle className="text-gray-900">Match Info</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid gap-2 text-sm text-slate-600">
+                    <CardContent className="grid gap-2 text-sm text-gray-700">
                       <div>Status: {match.status}</div>
                       <div>Overs limit: {current.oversLimit}</div>
                       <div>Current RR: {currentRR}</div>
@@ -1030,28 +1514,28 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
                   })
                 }
                 onChangeBowler={handleChangeBowler}
-                bowlingOptions={match.teams[1].players}
+                bowlingOptions={(match.teams.find(t => t.name === current.bowlingTeam) || { players: [] }).players}
                 needBowlerSelection={current.needBowlerSelection || false}
                 needBatsmanSelection={current.needBatsmanSelection || false}
                 onSelectNewBatsman={handleSelectNewBatsman}
                 batsmanOptions={getAvailableBatsmen()}
               />
 
-              <Card className="rounded-2xl">
+              <Card className="border-gray-300 rounded-2xl">
                 <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
+                  <CardTitle className="text-gray-900">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" onClick={() => alert("Saved locally (demo)")}>
+                  <Button variant="outline" onClick={() => alert("Saved locally (demo)")} className="text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white">
                     Save Snapshot
                   </Button>
-                  <Button variant="outline" onClick={() => alert("Synced (mock)")}>
+                  <Button variant="outline" onClick={() => alert("Synced (mock)")} className="text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white">
                     Sync
                   </Button>
-                  <Button variant="ghost" onClick={() => alert("Export JSON coming soon")}>
+                  <Button variant="outline" onClick={() => alert("Export JSON coming soon")} className="text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white">
                     Export JSON
                   </Button>
-                  <Button variant="ghost" onClick={() => alert("Import JSON coming soon")}>
+                  <Button variant="outline" onClick={() => alert("Import JSON coming soon")} className="text-gray-900 bg-white border-2 border-gray-900 hover:bg-gray-900 hover:text-white">
                     Import JSON
                   </Button>
                 </CardContent>
@@ -1061,11 +1545,139 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
         </div>
       </main>
 
-      <footer className="px-6 py-6 text-xs text-center border-t text-slate-500">
+      <footer className="px-6 py-6 text-xs text-center text-gray-600 border-t border-gray-300">
         © {new Date().getFullYear()} Spoural • {matchId ? 'Live scoring with database sync' : 'Demo mode'}
       </footer>
+
+      {/* Toss Dialog */}
+      <Dialog open={showTossDialog} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center text-gray-900">
+              🪙 Toss
+            </DialogTitle>
+            <DialogDescription className="text-center">
+              Select which team won the toss and their decision
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-6">
+            {/* Toss Winner Selection */}
+            <div>
+              <label className="block mb-2 text-sm font-semibold text-gray-900">Which team won the toss?</label>
+              <div className="grid grid-cols-2 gap-3">
+                {match.teams.map((team) => (
+                  <Button
+                    key={team.name}
+                    onClick={() => setTossWinner(team.name)}
+                    className={`h-16 text-base font-semibold transition-all ${
+                      tossWinner === team.name
+                        ? 'bg-gray-900 text-white border-2 border-gray-900'
+                        : 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    {team.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Toss Decision Selection */}
+            <div>
+              <label className="block mb-2 text-sm font-semibold text-gray-900">What did they choose?</label>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => setTossDecision("BAT")}
+                  className={`h-16 text-base font-semibold transition-all ${
+                    tossDecision === "BAT"
+                      ? 'bg-gray-900 text-white border-2 border-gray-900'
+                      : 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  🏏 Bat First
+                </Button>
+                <Button
+                  onClick={() => setTossDecision("BOWL")}
+                  className={`h-16 text-base font-semibold transition-all ${
+                    tossDecision === "BOWL"
+                      ? 'bg-gray-900 text-white border-2 border-gray-900'
+                      : 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  ⚾ Bowl First
+                </Button>
+              </div>
+            </div>
+
+            {/* Summary */}
+            {tossWinner && tossDecision && (
+              <div className="p-4 border-2 border-gray-900 rounded-lg bg-gray-50">
+                <div className="text-sm font-semibold text-gray-600 uppercase">Summary</div>
+                <div className="mt-2 text-base font-bold text-gray-900">
+                  {tossWinner} won the toss and elected to {tossDecision === "BAT" ? "bat" : "bowl"} first
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={handleTossSubmit}
+              disabled={!tossWinner || !tossDecision}
+              className="w-full text-white bg-gray-900 border-2 border-gray-900 hover:bg-white hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Start Match
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Match Winner Celebration Dialog */}
+      <Dialog open={showCelebration} onOpenChange={setShowCelebration}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-3xl font-bold text-center text-gray-900">
+              🎉 {winner === "TIE" ? "Match Tied!" : `${winner} Wins!`} 🎉
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-6 text-center">
+            {winner !== "TIE" && (
+              <>
+                <div className="mb-4 text-6xl animate-bounce">🏆</div>
+                <div className="text-2xl font-bold text-gray-900">{winner}</div>
+                <div className="mt-2 text-lg text-gray-600">
+                  Won by {match.winMargin || ""}
+                </div>
+              </>
+            )}
+            {winner === "TIE" && (
+              <>
+                <div className="mb-4 text-6xl">🤝</div>
+                <div className="text-xl font-semibold text-gray-700">
+                  What an amazing match! Both teams scored the same runs.
+                </div>
+              </>
+            )}
+            <div className="p-4 mt-6 border-2 border-gray-900 rounded-lg bg-gray-50">
+              <div className="text-sm font-semibold text-gray-600 uppercase">Match Summary</div>
+              <div className="mt-2 text-base text-gray-900">
+                <div>{match.teams[0].name}: {match.innings[0].total}/{match.innings[0].wickets}</div>
+                {match.innings.length > 1 && (
+                  <div>{match.teams[1].name}: {match.innings[1].total}/{match.innings[1].wickets}</div>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={() => setShowCelebration(false)}
+              className="w-full text-white bg-gray-900 border-2 border-gray-900 hover:bg-white hover:text-gray-900"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-export default CricketLiveScoringUI
+export default CricketLiveScoringUI;
