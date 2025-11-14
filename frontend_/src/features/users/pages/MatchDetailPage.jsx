@@ -29,27 +29,27 @@ const calcRR = (runs, deliveries) => {
 function TeamStrip({ name, score, wickets, overs, right, muted = false, isLive = false }) {
   return (
     <div className={`flex items-center ${right ? "justify-end" : "justify-start"} gap-4`}>
-      {!right && <div className="text-lg font-semibold text-gray-900 truncate md:text-xl">{name}</div>}
-      <div className={`px-4 py-2 rounded-2xl shadow-sm border ${muted ? "bg-gray-50 text-gray-400 border-gray-300" : isLive ? "bg-green-50 text-green-900 border-green-500 ring-2 ring-green-200" : "bg-white text-gray-900 border-gray-900"}`}>
-        <div className="text-2xl font-bold tabular-nums">{score}/{wickets}</div>
-        <div className={`text-xs ${muted ? "text-gray-400" : "text-gray-600"}`}>{overs} ov</div>
+      {!right && <div className="text-lg font-bold text-gray-950 truncate md:text-xl">{name}</div>}
+      <div className={`px-5 py-3 rounded-2xl shadow-lg border-2 ${muted ? "bg-gray-100 text-gray-500 border-gray-400" : isLive ? "bg-gradient-to-br from-green-100 to-green-50 text-green-950 border-green-600 ring-4 ring-green-300/50" : "bg-white text-gray-950 border-gray-950"}`}>
+        <div className="text-3xl font-extrabold tabular-nums">{score}/{wickets}</div>
+        <div className={`text-xs font-semibold ${muted ? "text-gray-500" : "text-gray-700"}`}>{overs} ov</div>
       </div>
-      {right && <div className="text-lg font-semibold text-right text-gray-900 truncate md:text-xl">{name}</div>}
+      {right && <div className="text-lg font-bold text-right text-gray-950 truncate md:text-xl">{name}</div>}
     </div>
   );
 }
 
 function ScoreStrip({ total, wickets, overs, rr, target = null }) {
   return (
-    <Card className="border-2 border-gray-900 shadow-lg rounded-2xl">
-      <CardContent className="py-4">
+    <Card className="border-3 border-gray-950 shadow-2xl rounded-2xl bg-gradient-to-br from-white to-gray-50">
+      <CardContent className="py-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-4xl font-extrabold text-gray-900 tabular-nums">{total}/{wickets}</div>
-          <div className="flex gap-4 text-sm">
-            <div className="text-gray-600">Overs: <span className="font-semibold text-gray-900">{overs}</span></div>
-            <div className="text-gray-600">CRR: <span className="font-semibold text-gray-900">{rr}</span></div>
+          <div className="text-5xl font-black text-gray-950 tabular-nums">{total}/{wickets}</div>
+          <div className="flex gap-6 text-sm font-medium">
+            <div className="text-gray-700">Overs: <span className="font-bold text-gray-950">{overs}</span></div>
+            <div className="text-gray-700">CRR: <span className="font-bold text-gray-950">{rr}</span></div>
             {target && (
-              <div className="text-gray-600">Need: <span className="font-semibold text-green-600">{target - total} runs</span></div>
+              <div className="text-gray-700">Need: <span className="font-bold text-green-700">{target - total} runs</span></div>
             )}
           </div>
         </div>
@@ -70,10 +70,10 @@ function OverProgress({ deliveries }) {
   });
 
   return (
-    <Card className="border-gray-300 shadow-md rounded-2xl">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-gray-900">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+    <Card className="border-2 border-gray-400 shadow-lg rounded-2xl bg-white">
+      <CardHeader className="pb-2 bg-gradient-to-r from-gray-50 to-white">
+        <CardTitle className="flex items-center gap-2 text-gray-950 font-bold">
+          <div className="w-3 h-3 bg-green-600 rounded-full animate-pulse"></div>
           Current Over
         </CardTitle>
       </CardHeader>
@@ -117,12 +117,12 @@ function OverProgress({ deliveries }) {
             </div>
           ))}
         </div>
-        <div className="mt-3 text-xs text-gray-600">
-          <span className="font-semibold text-orange-600">WD</span> = Wide,&nbsp;
-          <span className="font-semibold text-red-600">NB</span> = No Ball,&nbsp;
-          <span className="font-semibold text-blue-600">B</span> = Byes,&nbsp;
-          <span className="font-semibold text-indigo-600">LB</span> = Leg Byes,&nbsp;
-          <span className="font-semibold text-red-600">W</span> = Wicket
+        <div className="mt-3 text-xs font-medium text-gray-700 bg-gray-50 p-2 rounded-lg">
+          <span className="font-bold text-orange-700">WD</span> = Wide,&nbsp;
+          <span className="font-bold text-red-700">NB</span> = No Ball,&nbsp;
+          <span className="font-bold text-blue-700">B</span> = Byes,&nbsp;
+          <span className="font-bold text-indigo-700">LB</span> = Leg Byes,&nbsp;
+          <span className="font-bold text-red-700">W</span> = Wicket
         </div>
       </CardContent>
     </Card>
@@ -196,17 +196,17 @@ function BattingTable({ deliveries, players, strikerId, nonStrikerId }) {
   };
 
   return (
-    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+    <div className="overflow-x-auto border-2 border-gray-300 rounded-lg shadow-md">
       <Table>
-        <TableHeader className="bg-gray-50">
-          <TableRow>
-            <TableHead className="font-bold text-gray-900">Batsman</TableHead>
-            <TableHead className="font-bold text-right text-gray-900">R</TableHead>
-            <TableHead className="font-bold text-right text-gray-900">B</TableHead>
-            <TableHead className="font-bold text-right text-gray-900">4s</TableHead>
-            <TableHead className="font-bold text-right text-gray-900">6s</TableHead>
-            <TableHead className="font-bold text-right text-gray-900">SR</TableHead>
-            <TableHead className="font-bold text-right text-gray-900">Status</TableHead>
+        <TableHeader className="bg-gradient-to-r from-gray-100 to-gray-50">
+          <TableRow className="border-b-2 border-gray-300">
+            <TableHead className="font-black text-gray-950">Batsman</TableHead>
+            <TableHead className="font-black text-right text-gray-950">R</TableHead>
+            <TableHead className="font-black text-right text-gray-950">B</TableHead>
+            <TableHead className="font-black text-right text-gray-950">4s</TableHead>
+            <TableHead className="font-black text-right text-gray-950">6s</TableHead>
+            <TableHead className="font-black text-right text-gray-950">SR</TableHead>
+            <TableHead className="font-black text-right text-gray-950">Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -762,14 +762,81 @@ const CricketLiveViewer = () => {
                   muted={innings.length === 0 || !innings.find(inn => inn.battingTeam === match.teamB?.name)}
                 />
               </div>
-              <div className="p-3 text-sm text-center text-gray-700 rounded-lg bg-gray-50">
-                <strong>Toss:</strong> {(() => {
-                  const tossData = match.matchData?.toss || match.toss;
-                  const tossWinner = tossData?.winner || tossData?.tossWinner || match.matchData?.tossWinner || 'TBD';
-                  const tossDecision = tossData?.decision || tossData?.tossDecision || match.matchData?.tossDecision || 'bat';
-                  return `${tossWinner} won and elected to ${tossDecision} first`;
-                })()}
-              </div>
+              
+              {/* Match Status / Result Banner */}
+              {(() => {
+                // Show match result if completed
+                if (winner) {
+                  const winnerInnings = innings.find(inn => inn.battingTeam === winner);
+                  const loserInnings = innings.find(inn => inn.battingTeam !== winner);
+                  const margin = winnerInnings.total > loserInnings.total 
+                    ? `${winnerInnings.total - loserInnings.total} runs`
+                    : `${10 - winnerInnings.wickets} wickets`;
+                  
+                  return (
+                    <div className="p-4 text-center border-3 border-green-700 rounded-xl bg-gradient-to-r from-green-100 to-green-50 shadow-xl">
+                      <div className="text-xl font-black text-green-900">
+                        🏆 {winner} won by {margin}
+                      </div>
+                    </div>
+                  );
+                }
+                
+                // Show live match situation
+                if (innings.length === 2 && !winner) {
+                  const chasing = innings[1].battingTeam;
+                  const target = innings[0].total + 1;
+                  const needed = target - innings[1].total;
+                  const wicketsLeft = 10 - innings[1].wickets;
+                  
+                  if (needed > 0) {
+                    return (
+                      <div className="p-4 text-center border-3 border-orange-600 rounded-xl bg-gradient-to-r from-orange-100 to-yellow-50 shadow-xl">
+                        <div className="text-xl font-black text-orange-900">
+                          {chasing} needs {needed} run{needed !== 1 ? 's' : ''} to win with {wicketsLeft} wicket{wicketsLeft !== 1 ? 's' : ''} remaining
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+                
+                // Show first innings complete
+                if (innings.length === 1 && innings[0].complete) {
+                  return (
+                    <div className="p-4 text-center border-3 border-blue-600 rounded-xl bg-gradient-to-r from-blue-100 to-blue-50 shadow-xl">
+                      <div className="text-xl font-black text-blue-900">
+                        {innings[0].battingTeam}: {innings[0].total}/{innings[0].wickets} ({formatOvers(innings[0].deliveries || [])} overs)
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
+              
+              {/* Toss Information */}
+              <Card className="border-2 border-amber-600 shadow-lg rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-600 rounded-full">
+                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">Toss Result</div>
+                      <div className="text-sm font-black text-gray-950">
+                        {(() => {
+                          const tossData = match.matchData?.toss || match.toss;
+                          const tossWinner = tossData?.winner || tossData?.tossWinner || match.matchData?.tossWinner || 'TBD';
+                          const tossDecision = tossData?.decision || tossData?.tossDecision || match.matchData?.tossDecision || 'bat';
+                          return `${tossWinner} won and elected to ${tossDecision} first`;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
 
@@ -854,36 +921,36 @@ const CricketLiveViewer = () => {
 
           {/* Innings Summary - Show when multiple innings */}
           {innings.length > 1 && (
-            <Card className="border-2 border-purple-300 shadow-lg rounded-2xl bg-gradient-to-r from-purple-50 to-pink-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-gray-900">Innings Summary</CardTitle>
+            <Card className="border-3 border-purple-600 shadow-2xl rounded-2xl bg-gradient-to-r from-purple-100 to-pink-100">
+              <CardHeader className="pb-2 bg-gradient-to-r from-purple-50 to-pink-50">
+                <CardTitle className="text-gray-950 font-black">Innings Summary</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
                   {innings.map((inning, idx) => (
-                    <div key={idx} className="p-4 bg-white border-2 border-gray-300 shadow-sm rounded-xl">
-                      <div className="mb-2 text-sm font-bold text-gray-600">
+                    <div key={idx} className="p-5 bg-white border-3 border-purple-300 shadow-lg rounded-xl">
+                      <div className="mb-2 text-sm font-black text-gray-700 uppercase tracking-wide">
                         {idx === 0 ? '1st' : '2nd'} Innings - {inning.battingTeam}
                       </div>
-                      <div className="text-3xl font-bold text-gray-900">
+                      <div className="text-4xl font-black text-gray-950">
                         {inning.total}/{inning.wickets}
                       </div>
-                      <div className="mt-1 text-sm text-gray-600">
+                      <div className="mt-1 text-sm font-semibold text-gray-700">
                         {formatOvers(inning.deliveries || [])} overs
-                        {inning.complete && <Badge className="ml-2 text-xs bg-gray-600">Completed</Badge>}
+                        {inning.complete && <Badge className="ml-2 text-xs font-bold text-white bg-gray-700 hover:bg-gray-800">Completed</Badge>}
                       </div>
                     </div>
                   ))}
                 </div>
                 {innings.length === 2 && innings[1].total > 0 && (
-                  <div className="p-3 mt-4 text-center border-2 border-green-300 rounded-lg bg-green-50">
-                    <div className="text-sm font-semibold text-gray-700">
+                  <div className="p-4 mt-4 text-center border-3 border-green-600 rounded-lg bg-gradient-to-r from-green-100 to-green-50 shadow-lg">
+                    <div className="text-base font-black">
                       {innings[1].total > innings[0].total ? (
-                        <span className="text-green-700">{innings[1].battingTeam} leads by {innings[1].total - innings[0].total} runs</span>
+                        <span className="text-green-800">{innings[1].battingTeam} leads by {innings[1].total - innings[0].total} runs</span>
                       ) : innings[1].total < innings[0].total ? (
-                        <span className="text-orange-700">{innings[1].battingTeam} needs {innings[0].total - innings[1].total + 1} runs to win</span>
+                        <span className="text-orange-800">{innings[1].battingTeam} needs {innings[0].total - innings[1].total + 1} runs to win</span>
                       ) : (
-                        <span className="text-blue-700">Scores are tied!</span>
+                        <span className="text-blue-800">Scores are tied!</span>
                       )}
                     </div>
                   </div>
@@ -921,15 +988,15 @@ const CricketLiveViewer = () => {
                 
                 {/* Innings Selector - Show only if multiple innings exist */}
                 {innings.length > 1 && (
-                  <div className="flex gap-2 p-3 border-2 border-gray-200 rounded-lg bg-gray-50">
-                    <span className="font-semibold text-gray-700">Select Innings:</span>
+                  <div className="flex gap-3 p-4 border-2 border-gray-300 rounded-xl bg-white shadow-lg">
+                    <span className="font-black text-gray-950 self-center">Select Innings:</span>
                     {innings.map((inning, idx) => (
                       <Button
                         key={idx}
                         variant={selectedInnings === idx ? "default" : "outline"}
                         size="sm"
                         onClick={() => setSelectedInnings(idx)}
-                        className={selectedInnings === idx ? "bg-green-600 hover:bg-green-700" : ""}
+                        className={selectedInnings === idx ? "bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-800 shadow-md" : "bg-white border-2 border-gray-400 text-gray-950 font-bold hover:bg-gray-100 hover:border-gray-600"}
                       >
                         {idx === 0 ? '1st' : '2nd'} Innings - {inning.battingTeam}
                       </Button>
@@ -939,7 +1006,7 @@ const CricketLiveViewer = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => setSelectedInnings(null)}
-                        className="ml-auto"
+                        className="ml-auto bg-white border-2 border-green-600 text-green-800 font-bold hover:bg-green-50"
                       >
                         Show Current
                       </Button>
