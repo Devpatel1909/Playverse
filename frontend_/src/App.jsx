@@ -10,10 +10,8 @@ import FootballManagement from "./features/football/components/FootballManagemen
 import FootballAdminPage from "./features/admin/pages/FootballAdminPage.jsx";
 import BasketballAdminPage from "./features/admin/pages/BasketballAdminPage.jsx";
 import TennisAdminPage from "./features/admin/pages/TennisAdminPage.jsx";
-import APIConnectionTest from "./components/APIConnectionTest.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
-import SuperAdminDebug from "./components/SuperAdminDebug.jsx";
 import PublicScoreView from "./features/users/pages/PublicScoreView.jsx";
 import MatchDetailPage from "./features/users/pages/MatchDetailPage.jsx";
 import SchedulePage from "./features/users/pages/SchedulePage.jsx";
@@ -29,9 +27,7 @@ function App() {
       <Route path="/archives" element={<ArchivesPage />} />
       <Route path="/match/:matchId" element={<MatchDetailPage />} />
 
-      {/* API Connection Test */}
-      <Route path="/test-connection" element={<APIConnectionTest />} />
-      <Route path="/debug" element={<SuperAdminDebug />} />
+
 
       {/* Admin */}
       <Route path="/admin/login" element={<AdminLogin />} />

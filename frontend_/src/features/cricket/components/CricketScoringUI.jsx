@@ -30,7 +30,7 @@ const calcRR = (runs, deliveries) => {
 
 const swapStrikeIfNeeded = (strikerId, nonStrikerId, runs, type) => {
   const isOdd = runs % 2 === 1;
-  
+
   // For wides - only the extra runs (beyond the 1 penalty) matter for strike change
   // Wide = 1 run (no change), Wide+1 = 2 runs (no change), Wide+2 = 3 runs (change)
   if (type === "WIDE") {
@@ -39,19 +39,19 @@ const swapStrikeIfNeeded = (strikerId, nonStrikerId, runs, type) => {
     if (extraRuns % 2 === 1) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
     return { strikerId, nonStrikerId };
   }
-  
+
   // For byes and leg byes - total runs determine strike change
   if (type === "BYE" || type === "LEGBYE") {
     if (isOdd) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
     return { strikerId, nonStrikerId };
   }
-  
+
   // For no balls - runs off the bat determine strike change
   if (type === "NOBALL") {
     if (isOdd) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
     return { strikerId, nonStrikerId };
   }
-  
+
   // For legal balls - strike changes on odd runs
   if (isOdd) return { strikerId: nonStrikerId, nonStrikerId: strikerId };
   return { strikerId, nonStrikerId };
@@ -304,7 +304,7 @@ function BowlingTable({ deliveries, players, currentBowlerId }) {
       }
       if (d.type === "WICKET") s.wkts += 1;
       if (d.batsmanRuns === 0 && d.type !== "WIDE" && d.type !== "NOBALL") s.dots += 1;
-      
+
       // Track wides and no balls
       if (d.type === "WIDE") s.wides += 1;
       if (d.type === "NOBALL") s.noBalls += 1;
@@ -339,7 +339,7 @@ function BowlingTable({ deliveries, players, currentBowlerId }) {
     const eco = s.balls ? (s.runs / (s.balls / 6)).toFixed(2) : "0.00";
     const isCurrent = p.id === currentBowlerId;
     const extras = s.wides + s.noBalls;
-    
+
     return (
       <TableRow key={p.id} className={isCurrent ? "bg-gray-50" : ""}>
         <TableCell className="font-medium text-gray-900">
@@ -704,7 +704,7 @@ const ScorerPanel = ({
         <div className="space-y-2">
           <h4 className="px-1 text-xs font-bold tracking-wider text-gray-700 uppercase">Wicket</h4>
           <Button
-            className="w-full h-12 text-base font-bold text-white transition-all bg-gray-900 shadow-md rounded-xl hover:shadow-lg hover:bg-gray-800"
+            className="w-full h-12 text-base font-bold text-white transition-all bg-gray-900 shadow-md rounded-xl hover:shadow-lg hover:bg-gray-800 flex items-center justify-center"
             onClick={() => setWicketOpen(true)}
           >
             <AlertTriangle className="w-5 h-5 mr-2" />
@@ -804,7 +804,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
     }
   }, [initialMatch]);
 
-//
+  //
   // Auto-save to database whenever match state changes (debounced)
   //
   useEffect(() => {
@@ -815,7 +815,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       const is2ndInnings = match.currentInningsIndex === 1;
       const secondInnings = match.innings[1];
       const isMatchCompleted = is2ndInnings && secondInnings?.complete;
-      
+
       if (isMatchCompleted) {
         console.log('[CricketScoringUI] Match is completed, skipping auto-sync');
         return;
@@ -867,7 +867,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
 
     setMatch((prev) => {
       const copy = { ...prev };
-      
+
       // Set toss information
       copy.toss = {
         winner: tossWinner,
@@ -1029,9 +1029,9 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       };
 
       console.log('[CricketScoring] Saving completed match:', { matchId, scoreData });
-      
+
       await cricketAPIService.updateMatchScore(matchId, scoreData);
-      
+
       // Calculate and save player statistics (non-blocking)
       try {
         const playerStats = calculatePlayerStats();
@@ -1042,9 +1042,9 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
         console.error('[CricketScoring] Failed to save player stats (non-critical):', statsError);
         // Continue anyway - player stats update is optional
       }
-      
+
       console.log('[CricketScoring] Match saved successfully to database');
-      
+
       // Redirect to cricket management page after 2 seconds
       setTimeout(() => {
         window.location.href = '/admin/cricket';
@@ -1096,8 +1096,8 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
     let n = inn.initialNonStrikerId || inn.nonStrikerId || '';
     inn.deliveries.forEach((d, idx) => {
       // For byes, leg byes, and wides - use total runs for strike rotation
-      const runsForRotation = (d.type === "BYE" || d.type === "LEGBYE" || d.type === "WIDE") 
-        ? d.runs 
+      const runsForRotation = (d.type === "BYE" || d.type === "LEGBYE" || d.type === "WIDE")
+        ? d.runs
         : d.batsmanRuns;
       ({ strikerId: s, nonStrikerId: n } = swapStrikeIfNeeded(s, n, runsForRotation, d.type));
       ({ strikerId: s, nonStrikerId: n } = endOfOverSwap(s, n, inn.deliveries.slice(0, idx + 1)));
@@ -1156,10 +1156,10 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
 
     // Determine striker swap due to runs
     // For byes, leg byes, and wides - use total runs for strike rotation
-    const runsForStrikeRotation = (del.type === "BYE" || del.type === "LEGBYE" || del.type === "WIDE") 
-      ? del.runs 
+    const runsForStrikeRotation = (del.type === "BYE" || del.type === "LEGBYE" || del.type === "WIDE")
+      ? del.runs
       : del.batsmanRuns;
-    
+
     let { strikerId, nonStrikerId } = swapStrikeIfNeeded(
       current.strikerId,
       current.nonStrikerId,
@@ -1174,13 +1174,13 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
     const legalAfter = nextDeliveries.filter((d) => d.type !== "WIDE" && d.type !== "NOBALL").length;
     const isOversLimitReached = legalAfter >= (current.oversLimit * 6);
     const isAllOut = wickets >= 10;
-    
+
     // Check if 2nd innings and chasing team has won
     const is2ndInnings = match.currentInningsIndex === 1;
     const chasingTeamWon = is2ndInnings && total >= match.innings[0].total + 1;
-    
+
     const inningsComplete = isOversLimitReached || isAllOut || chasingTeamWon;
-    
+
     // Check if over is complete (6 legal balls bowled in current over)
     const isOverComplete = (legalAfter % 6 === 0) && legalAfter > 0 && del.type !== "WIDE" && del.type !== "NOBALL";
 
@@ -1193,13 +1193,13 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       inn.strikerId = strikerId;
       inn.nonStrikerId = nonStrikerId;
       inn.oversBowled = Math.floor(legalAfter / 6);
-      
+
       // Only allow bowler change if over is complete AND innings is not complete
       inn.needBowlerSelection = inningsComplete ? false : isOverComplete;
       inn.needBatsmanSelection = del.type === "WICKET" && !inningsComplete;
       inn.complete = inningsComplete;
       copy.innings[copy.currentInningsIndex] = inn;
-      
+
       // Determine winner if 2nd innings is complete
       if (is2ndInnings && inningsComplete) {
         if (chasingTeamWon) {
@@ -1213,10 +1213,10 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
           copy.winMargin = "Match Tied";
         }
       }
-      
+
       return copy;
     });
-    
+
     // Show celebration and save match if won
     if (is2ndInnings && chasingTeamWon) {
       setWinner(current.battingTeam);
@@ -1367,7 +1367,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
                 <button
                   key={idx}
                   onClick={() => switchInnings(idx)}
-                  className={`px-3 py-1 rounded transition-all ${ match.currentInningsIndex === idx ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-200' }`}
+                  className={`px-3 py-1 rounded transition-all ${match.currentInningsIndex === idx ? 'bg-gray-900 text-white' : 'bg-white text-gray-900 hover:bg-gray-200'}`}
                 >
                   {idx === 0 ? '1st' : '2nd'} Innings
                 </button>
@@ -1491,10 +1491,10 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
               </Card>
 
               <Tabs defaultValue="commentary" className="rounded-2xl">
-                <TabsList className="grid w-full grid-cols-3 bg-white border-2 border-gray-900">
-                  <TabsTrigger value="commentary" className="text-gray-900 data-[state=active]:bg-gray-900 data-[state=active]:text-white">Commentary</TabsTrigger>
-                  <TabsTrigger value="lineups" className="text-gray-900 data-[state=active]:bg-gray-900 data-[state=active]:text-white">Line-ups</TabsTrigger>
-                  <TabsTrigger value="info" className="text-gray-900 data-[state=active]:bg-gray-900 data-[state=active]:text-white">Info</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-3 bg-white">
+                  <TabsTrigger value="commentary" className="text-white data-[state=active]:bg-gray-900 data-[state=active]:text-white">Commentary</TabsTrigger>
+                  <TabsTrigger value="lineups" className="text-white data-[state=active]:bg-gray-900 data-[state=active]:text-white">Line-ups</TabsTrigger>
+                  <TabsTrigger value="info" className="text-white data-[state=active]:bg-gray-900 data-[state=active]:text-white">Info</TabsTrigger>
                 </TabsList>
                 <TabsContent value="commentary">
                   <Card className="border-gray-300 rounded-2xl">
@@ -1593,7 +1593,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
       </footer>
 
       {/* Toss Dialog */}
-      <Dialog open={showTossDialog} onOpenChange={() => {}}>
+      <Dialog open={showTossDialog} onOpenChange={() => { }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-center text-gray-900">
@@ -1606,17 +1606,19 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
           <div className="py-4 space-y-6">
             {/* Toss Winner Selection */}
             <div>
-              <label className="block mb-2 text-sm font-semibold text-gray-900">Which team won the toss?</label>
+              <label className="block mb-2 text-sm font-semibold text-black-900">Which team won the toss?</label>
               <div className="grid grid-cols-2 gap-3">
                 {match.teams.map((team) => (
                   <Button
                     key={team.name}
                     onClick={() => setTossWinner(team.name)}
-                    className={`h-16 text-base font-semibold transition-all ${
-                      tossWinner === team.name
-                        ? 'bg-gray-900 text-white border-2 border-gray-900'
-                        : 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-100'
-                    }`}
+                    style={{
+                      color: tossWinner === team.name ? 'white' : 'black'
+                    }}
+                    className={`h-16 text-base font-semibold transition-all ${tossWinner === team.name
+                        ? 'bg-gray-900 border-2 border-gray-900'
+                        : 'bg-white border-2 border-gray-900 hover:bg-gray-100'
+                      }`}
                   >
                     {team.name}
                   </Button>
@@ -1630,23 +1632,27 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   onClick={() => setTossDecision("BAT")}
-                  className={`h-16 text-base font-semibold transition-all ${
-                    tossDecision === "BAT"
-                      ? 'bg-gray-900 text-white border-2 border-gray-900'
-                      : 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-100'
-                  }`}
+                  style={{
+                    color: tossDecision === "BAT" ? 'white' : 'black'
+                  }}
+                  className={`h-16 text-base font-semibold transition-all ${tossDecision === "BAT"
+                      ? 'bg-gray-900 border-2 border-gray-900'
+                      : 'bg-white border-2 border-gray-900 hover:bg-gray-100'
+                    }`}
                 >
-                  🏏 Bat First
+                  Bat First
                 </Button>
                 <Button
                   onClick={() => setTossDecision("BOWL")}
-                  className={`h-16 text-base font-semibold transition-all ${
-                    tossDecision === "BOWL"
-                      ? 'bg-gray-900 text-white border-2 border-gray-900'
-                      : 'bg-white text-gray-900 border-2 border-gray-900 hover:bg-gray-100'
-                  }`}
+                  style={{
+                    color: tossDecision === "BOWL" ? 'white' : 'black'
+                  }}
+                  className={`h-16 text-base font-semibold transition-all ${tossDecision === "BOWL"
+                      ? 'bg-gray-900 border-2 border-gray-900'
+                      : 'bg-white border-2 border-gray-900 hover:bg-gray-100'
+                    }`}
                 >
-                  ⚾ Bowl First
+                  Bowl First
                 </Button>
               </div>
             </div>
@@ -1662,7 +1668,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
             )}
           </div>
           <DialogFooter>
-            <Button 
+            <Button
               onClick={handleTossSubmit}
               disabled={!tossWinner || !tossDecision}
               className="w-full text-white bg-gray-900 border-2 border-gray-900 hover:bg-white hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1710,7 +1716,7 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
             </div>
           </div>
           <DialogFooter>
-            <Button 
+            <Button
               onClick={() => setShowCelebration(false)}
               className="w-full text-white bg-gray-900 border-2 border-gray-900 hover:bg-white hover:text-gray-900"
             >
