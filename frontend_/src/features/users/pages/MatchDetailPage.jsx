@@ -5,6 +5,7 @@ import { Badge } from '../../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { MapPin, Clock, Users, ArrowLeft } from 'lucide-react';
 import Navigation from '../../../components/Navigation';
+import { useMatchSocket } from '../../../hooks/useSocket';
 
 const MatchDetailPage = () => {
   const { matchId } = useParams();
@@ -13,9 +14,32 @@ const MatchDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const fromSport = location.state?.fromSport || 'all';
 
+  // Real-time updates via Socket.IO
+  const { matchData } = useMatchSocket(matchId);
+
+  // Update match data when socket receives updates
   useEffect(() => {
-    // Mock data - in production, fetch from API using matchId
-    const mockMatches = [
+    if (matchData) {
+      setMatch(prevMatch => ({
+        ...prevMatch,
+        ...matchData
+      }));
+    }
+  }, [matchData]);
+
+  useEffect(() => {
+    const fetchMatchDetails = async () => {
+      try {
+        setLoading(true);
+        // Fetch from real API
+        const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
+        const response = await publicScoreAPI.getMatchDetails(matchId);
+        
+        if (response && response.data) {
+          setMatch(response.data);
+        } else {
+          // Fallback to mock data if API fails
+          const mockMatches = [
       {
         id: '1',
         sport: 'Cricket',
@@ -809,11 +833,21 @@ const MatchDetailPage = () => {
         city: 'Paris, France',
         capacity: '48000 (approx)',
       },
-    ];
+          ];
 
-    const foundMatch = mockMatches.find(m => m.id === matchId);
-    setMatch(foundMatch || mockMatches[0]);
-    setLoading(false);
+          const foundMatch = mockMatches.find(m => m.id === matchId);
+          setMatch(foundMatch || mockMatches[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching match details:', error);
+        // Set a default match on error
+        setMatch(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatchDetails();
   }, [matchId]);
 
   if (loading) {
@@ -1053,7 +1087,7 @@ const MatchDetailPage = () => {
             <TabsContent value="scorecard" className="p-6">
               {match.sport === 'Cricket' ? (
               <div className="space-y-6">
-                {/* India Innings */}
+                {/* Team 2 Innings */}
                 <Card>
                   <CardHeader className="bg-green-600 text-white">
                     <div className="flex justify-between items-center">
@@ -1064,274 +1098,59 @@ const MatchDetailPage = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-0">
-                    {/* Batting Table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left p-3 font-semibold text-gray-700">Batter</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">R</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">B</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">4s</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">6s</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">SR</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-semibold text-gray-900">Abhishek Sharma</div>
-                              <div className="text-xs text-gray-600">not out</div>
-                            </td>
-                            <td className="text-center p-3 font-bold text-gray-900">23</td>
-                            <td className="text-center p-3 text-gray-700">13</td>
-                            <td className="text-center p-3 text-gray-700">1</td>
-                            <td className="text-center p-3 text-gray-700">1</td>
-                            <td className="text-center p-3 text-gray-700">176.92</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-semibold text-gray-900">Shubman Gill</div>
-                              <div className="text-xs text-gray-600">not out</div>
-                            </td>
-                            <td className="text-center p-3 font-bold text-gray-900">29</td>
-                            <td className="text-center p-3 text-gray-700">16</td>
-                            <td className="text-center p-3 text-gray-700">6</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">181.25</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Extras */}
-                    <div className="p-3 bg-gray-50 border-t">
-                      <div className="text-sm">
-                        <span className="font-semibold text-gray-700">Extras:</span>
-                        <span className="text-gray-900 ml-2">0 (b 0, lb 0, w 0, nb 0, p 0)</span>
-                      </div>
-                    </div>
-
-                    {/* Total */}
-                    <div className="p-3 bg-green-50 border-t">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-900">Total</span>
-                        <span className="font-bold text-xl text-gray-900">{match.score2} ({match.overs2} Overs, RR: 10.76)</span>
-                      </div>
-                    </div>
-
-                    {/* Did not Bat */}
-                    <div className="p-3 border-t">
-                      <div className="text-sm">
-                        <span className="font-semibold text-gray-700">Did not Bat:</span>
-                        <span className="text-gray-900 ml-2">
-                          Suryakumar Yadav (c), Rinku Singh, Jitesh Sharma (wk), Washington Sundar, Shivam Dube, Axar Patel, Arshdeep Singh, Varun Chakaravarthy, Jasprit Bumrah
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bowling Table */}
-                    <div className="overflow-x-auto border-t">
-                      <div className="p-3 bg-gray-50">
-                        <h3 className="font-bold text-gray-900">Bowler</h3>
-                      </div>
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left p-3 font-semibold text-gray-700">Bowler</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">O</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">M</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">R</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">W</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">ECO</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Ben Dwarshuis</td>
-                            <td className="text-center p-3 text-gray-700">2</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">27</td>
-                            <td className="text-center p-3 font-bold text-gray-900">0</td>
-                            <td className="text-center p-3 text-gray-700">13.50</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Nathan Ellis</td>
-                            <td className="text-center p-3 text-gray-700">1</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">12</td>
-                            <td className="text-center p-3 font-bold text-gray-900">0</td>
-                            <td className="text-center p-3 text-gray-700">12.00</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Xavier Bartlett</td>
-                            <td className="text-center p-3 text-gray-700">0.2</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">5</td>
-                            <td className="text-center p-3 font-bold text-gray-900">0</td>
-                            <td className="text-center p-3 text-gray-700">15.00</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                  <CardContent className="p-6">
+                    <div className="text-center py-8">
+                      <p className="text-gray-600 mb-4">Detailed ball-by-ball scorecard will be available during live matches</p>
+                      <p className="text-sm text-gray-500 mb-4">Final Score: {match.score2} {match.overs2 && `(${match.overs2} Overs)`}</p>
+                      {match.team2Players && match.team2Players.length > 0 && (
+                        <div className="mt-6">
+                          <h4 className="font-semibold text-gray-900 mb-3">Squad</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-left">
+                            {match.team2Players.map((player, idx) => (
+                              <div key={idx} className="text-sm text-gray-700">
+                                <span className="font-medium">{player.name}</span>
+                                <span className="text-gray-500 ml-2">({player.role})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Australia Innings */}
+                {/* Team 1 Innings */}
                 <Card>
-                  <CardHeader className="bg-gray-100">
+                  <CardHeader className="bg-blue-600 text-white">
                     <div className="flex justify-between items-center">
-                      <CardTitle className="text-lg font-bold text-gray-900">{match.team1}</CardTitle>
+                      <CardTitle className="text-lg font-bold">{match.team1}</CardTitle>
                       <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900">{match.score1}</div>
-                        {match.overs1 && <div className="text-sm text-gray-600">({match.overs1} Ov)</div>}
+                        <div className="text-2xl font-bold">{match.score1}</div>
+                        {match.overs1 && <div className="text-sm opacity-90">({match.overs1} Ov)</div>}
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-0">
-                    {/* Batting Table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left p-3 font-semibold text-gray-700">Batter</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">R</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">B</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">4s</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">6s</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">SR</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-semibold text-gray-900">Travis Head</div>
-                              <div className="text-xs text-gray-600">c Sharma b Bumrah</div>
-                            </td>
-                            <td className="text-center p-3 font-bold text-gray-900">45</td>
-                            <td className="text-center p-3 text-gray-700">28</td>
-                            <td className="text-center p-3 text-gray-700">6</td>
-                            <td className="text-center p-3 text-gray-700">2</td>
-                            <td className="text-center p-3 text-gray-700">160.71</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-semibold text-gray-900">Matthew Short</div>
-                              <div className="text-xs text-gray-600">c Gill b Arshdeep</div>
-                            </td>
-                            <td className="text-center p-3 font-bold text-gray-900">37</td>
-                            <td className="text-center p-3 text-gray-700">25</td>
-                            <td className="text-center p-3 text-gray-700">4</td>
-                            <td className="text-center p-3 text-gray-700">2</td>
-                            <td className="text-center p-3 text-gray-700">148.00</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-semibold text-gray-900">Josh Inglis (wk)</div>
-                              <div className="text-xs text-gray-600">not out</div>
-                            </td>
-                            <td className="text-center p-3 font-bold text-gray-900">52</td>
-                            <td className="text-center p-3 text-gray-700">32</td>
-                            <td className="text-center p-3 text-gray-700">5</td>
-                            <td className="text-center p-3 text-gray-700">3</td>
-                            <td className="text-center p-3 text-gray-700">162.50</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3">
-                              <div className="font-semibold text-gray-900">Tim David</div>
-                              <div className="text-xs text-gray-600">not out</div>
-                            </td>
-                            <td className="text-center p-3 font-bold text-gray-900">28</td>
-                            <td className="text-center p-3 text-gray-700">18</td>
-                            <td className="text-center p-3 text-gray-700">2</td>
-                            <td className="text-center p-3 text-gray-700">2</td>
-                            <td className="text-center p-3 text-gray-700">155.56</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Extras */}
-                    <div className="p-3 bg-gray-50 border-t">
-                      <div className="text-sm">
-                        <span className="font-semibold text-gray-700">Extras:</span>
-                        <span className="text-gray-900 ml-2">8 (b 2, lb 3, w 2, nb 1, p 0)</span>
-                      </div>
-                    </div>
-
-                    {/* Total */}
-                    <div className="p-3 bg-blue-50 border-t">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-gray-900">Total</span>
-                        <span className="font-bold text-xl text-gray-900">{match.score1} ({match.overs1} Overs, RR: 9.25)</span>
-                      </div>
-                    </div>
-
-                    {/* Did not Bat */}
-                    <div className="p-3 border-t">
-                      <div className="text-sm">
-                        <span className="font-semibold text-gray-700">Did not Bat:</span>
-                        <span className="text-gray-900 ml-2">
-                          Mitchell Marsh (c), Glenn Maxwell, Marcus Stoinis, Sean Abbott, Nathan Ellis, Xavier Bartlett, Ben Dwarshuis
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Bowling Table */}
-                    <div className="overflow-x-auto border-t">
-                      <div className="p-3 bg-gray-50">
-                        <h3 className="font-bold text-gray-900">Bowler</h3>
-                      </div>
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50 border-b">
-                          <tr>
-                            <th className="text-left p-3 font-semibold text-gray-700">Bowler</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">O</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">M</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">R</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">W</th>
-                            <th className="text-center p-3 font-semibold text-gray-700">ECO</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Jasprit Bumrah</td>
-                            <td className="text-center p-3 text-gray-700">4</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">35</td>
-                            <td className="text-center p-3 font-bold text-gray-900">1</td>
-                            <td className="text-center p-3 text-gray-700">8.75</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Arshdeep Singh</td>
-                            <td className="text-center p-3 text-gray-700">4</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">42</td>
-                            <td className="text-center p-3 font-bold text-gray-900">1</td>
-                            <td className="text-center p-3 text-gray-700">10.50</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Varun Chakaravarthy</td>
-                            <td className="text-center p-3 text-gray-700">4</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">38</td>
-                            <td className="text-center p-3 font-bold text-gray-900">0</td>
-                            <td className="text-center p-3 text-gray-700">9.50</td>
-                          </tr>
-                          <tr className="hover:bg-gray-50">
-                            <td className="p-3 font-semibold text-gray-900">Axar Patel</td>
-                            <td className="text-center p-3 text-gray-700">4</td>
-                            <td className="text-center p-3 text-gray-700">0</td>
-                            <td className="text-center p-3 text-gray-700">32</td>
-                            <td className="text-center p-3 font-bold text-gray-900">0</td>
-                            <td className="text-center p-3 text-gray-700">8.00</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                  <CardContent className="p-6">
+                    <div className="text-center py-8">
+                      <p className="text-gray-600 mb-4">Detailed ball-by-ball scorecard will be available during live matches</p>
+                      <p className="text-sm text-gray-500 mb-4">Final Score: {match.score1} {match.overs1 && `(${match.overs1} Overs)`}</p>
+                      {match.team1Players && match.team1Players.length > 0 && (
+                        <div className="mt-6">
+                          <h4 className="font-semibold text-gray-900 mb-3">Squad</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-left">
+                            {match.team1Players.map((player, idx) => (
+                              <div key={idx} className="text-sm text-gray-700">
+                                <span className="font-medium">{player.name}</span>
+                                <span className="text-gray-500 ml-2">({player.role})</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
+
               </div>
               ) : match.sport === 'Football' ? (
                 <div className="space-y-6">
@@ -1566,17 +1385,29 @@ const MatchDetailPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {['Player 1 (C)', 'Player 2', 'Player 3 (WK)', 'Player 4', 'Player 5', 'Player 6', 'Player 7', 'Player 8', 'Player 9', 'Player 10', 'Player 11'].map((player, idx) => (
-                        <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <Users className="w-5 h-5 text-gray-600" />
+                      {match.team1Players && match.team1Players.length > 0 ? (
+                        match.team1Players.map((player, idx) => (
+                          <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-bold">{player.jerseyNumber}</span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900">{player.name}</div>
+                              <div className="text-xs text-gray-600">{player.role}</div>
+                            </div>
+                            {player.matches > 0 && (
+                              <div className="text-right text-xs text-gray-500">
+                                {player.runs > 0 && <div>{player.runs} runs</div>}
+                                {player.wickets > 0 && <div>{player.wickets} wkts</div>}
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">{player}</div>
-                            <div className="text-xs text-gray-600">Batter</div>
-                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          Squad information not available
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1587,17 +1418,29 @@ const MatchDetailPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {['Player A (C)', 'Player B', 'Player C (WK)', 'Player D', 'Player E', 'Player F', 'Player G', 'Player H', 'Player I', 'Player J', 'Player K'].map((player, idx) => (
-                        <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <Users className="w-5 h-5 text-gray-600" />
+                      {match.team2Players && match.team2Players.length > 0 ? (
+                        match.team2Players.map((player, idx) => (
+                          <div key={idx} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                              <span className="text-green-600 font-bold">{player.jerseyNumber}</span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900">{player.name}</div>
+                              <div className="text-xs text-gray-600">{player.role}</div>
+                            </div>
+                            {player.matches > 0 && (
+                              <div className="text-right text-xs text-gray-500">
+                                {player.runs > 0 && <div>{player.runs} runs</div>}
+                                {player.wickets > 0 && <div>{player.wickets} wkts</div>}
+                              </div>
+                            )}
                           </div>
-                          <div>
-                            <div className="font-semibold text-gray-900">{player}</div>
-                            <div className="text-xs text-gray-600">Batter</div>
-                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          Squad information not available
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1608,209 +1451,69 @@ const MatchDetailPage = () => {
             <TabsContent value="overs" className="p-6">
               {match.sport === 'Cricket' ? (
               <div className="space-y-4">
-                {[
-                  { over: 'Ov 5', runs: '5 runs', score: '52-0', bowler: 'Xavier Bartlett', batsmen: 'Gill & Abhishek Sharma', balls: [1, 1, 0, 1, 2] },
-                  { over: 'Ov 4', runs: '12 runs', score: '47-0', bowler: 'Nathan Ellis', batsmen: 'Gill & Abhishek Sharma', balls: [2, 0, 2, 1, 1, 6] },
-                  { over: 'Ov 3', runs: '16 runs', score: '35-0', bowler: 'Ben Dwarshuis', batsmen: 'Gill & Dwarshuis', balls: [4, 0, 4, 4, 4, 0] },
-                ].map((over, idx) => (
-                  <Card key={idx}>
-                    <CardHeader className="pb-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-bold text-gray-900">{over.over}</div>
-                          <div className="text-sm text-gray-600">{over.runs}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold text-gray-900">{match.team1}</div>
-                          <div className="text-sm text-gray-600">{over.score}</div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="mb-3">
-                        <div className="text-sm text-gray-700">{over.bowler} to {over.batsmen}</div>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        {over.balls.map((ball, ballIdx) => (
-                          <div
-                            key={ballIdx}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                              ball === 6 ? 'bg-purple-600' :
-                              ball === 4 ? 'bg-blue-600' :
-                              ball > 0 ? 'bg-green-600' :
-                              'bg-gray-400'
-                            }`}
-                          >
-                            {ball}
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                <div className="text-center py-12">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Over-by-Over Summary</h3>
+                  <p className="text-gray-600 mb-2">Detailed over-by-over analysis will be available during live matches</p>
+                  <p className="text-sm text-gray-500">This feature shows run rate, wickets, and key moments for each over</p>
+                </div>
               </div>
-              ) : match.sport === 'Football' ? (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Match Timeline</h3>
-                  {[
-                    { time: '67\'', event: 'Goal', team: match.team1, player: 'Marcus Rashford', desc: 'Assisted by Bruno Fernandes' },
-                    { time: '52\'', event: 'Goal', team: match.team2, player: 'Mohamed Salah', desc: 'Penalty kick' },
-                    { time: '45\'', event: 'Half Time', team: null, player: null, desc: `${match.team1} 1 - 0 ${match.team2}` },
-                    { time: '23\'', event: 'Goal', team: match.team1, player: 'Casemiro', desc: 'Header from corner' },
-                    { time: '12\'', event: 'Yellow Card', team: match.team2, player: 'Virgil van Dijk', desc: 'Foul' },
-                  ].map((event, idx) => (
-                    <Card key={idx}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-12 text-center">
-                            <span className="font-bold text-gray-900">{event.time}</span>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`px-2 py-1 text-xs font-bold rounded ${
-                                event.event === 'Goal' ? 'bg-green-100 text-green-800' :
-                                event.event === 'Yellow Card' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>{event.event}</span>
-                              {event.team && <span className="font-semibold text-gray-900">{event.team}</span>}
-                            </div>
-                            {event.player && <div className="font-semibold text-gray-900">{event.player}</div>}
-                            <div className="text-sm text-gray-600">{event.desc}</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : match.sport === 'Basketball' ? (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Play-by-Play</h3>
-                  {[
-                    { quarter: 'Q4', time: '2:45', team: match.team2, player: 'Stephen Curry', action: '3-pointer', score: `${match.score1}-${match.score2}` },
-                    { quarter: 'Q4', time: '3:12', team: match.team1, player: 'LeBron James', action: 'Layup', score: '98-99' },
-                    { quarter: 'Q4', time: '4:30', team: match.team2, player: 'Klay Thompson', action: 'Jump shot', score: '96-99' },
-                    { quarter: 'Q3', time: '0:05', team: match.team1, player: 'Anthony Davis', action: 'Dunk', score: '96-97' },
-                    { quarter: 'Q3', time: '1:23', team: match.team2, player: 'Draymond Green', action: 'Free throw', score: '94-97' },
-                  ].map((play, idx) => (
-                    <Card key={idx}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-16 text-center">
-                            <div className="font-bold text-gray-900">{play.quarter}</div>
-                            <div className="text-sm text-gray-600">{play.time}</div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-semibold text-gray-900">{play.team}</div>
-                            <div className="text-sm text-gray-700">{play.player} - {play.action}</div>
-                          </div>
-                          <div className="flex-shrink-0 font-bold text-gray-900">{play.score}</div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : match.sport === 'Tennis' ? (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Game Log</h3>
-                  {[
-                    { set: 'Set 3', game: 'Game 10', score: '5-4', winner: match.team1, points: ['15-0', '15-15', '30-15', '40-15', 'Game'] },
-                    { set: 'Set 3', game: 'Game 9', score: '4-4', winner: match.team2, points: ['0-15', '0-30', '15-30', '15-40', 'Game'] },
-                    { set: 'Set 2', game: 'Game 10', score: '3-6', winner: match.team2, points: ['0-15', '15-15', '15-30', '15-40', 'Game'] },
-                  ].map((game, idx) => (
-                    <Card key={idx}>
-                      <CardContent className="p-4">
-                        <div className="mb-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-gray-900">{game.set} - {game.game}</span>
-                            <span className="font-semibold text-gray-900">{game.score}</span>
-                          </div>
-                          <div className="text-sm text-gray-600">Winner: {game.winner}</div>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          {game.points.map((point, pointIdx) => (
-                            <span key={pointIdx} className="px-2 py-1 text-xs bg-gray-100 rounded text-gray-700">
-                              {point}
-                            </span>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : match.sport === 'Hockey' ? (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Period Summary</h3>
-                  {[
-                    { period: 'P2', time: '8:23', team: match.team1, player: 'Connor McDavid', event: 'Goal', assist: 'Leon Draisaitl', score: '3-2' },
-                    { period: 'P2', time: '12:45', team: match.team2, player: 'Auston Matthews', event: 'Goal', assist: 'Mitch Marner', score: '2-2' },
-                    { period: 'P1', time: '15:30', team: match.team1, player: 'Zach Hyman', event: 'Goal', assist: 'Ryan Nugent-Hopkins', score: '2-1' },
-                    { period: 'P1', time: '8:12', team: match.team2, player: 'William Nylander', event: 'Goal', assist: 'John Tavares', score: '1-1' },
-                    { period: 'P1', time: '3:45', team: match.team1, player: 'Evan Bouchard', event: 'Goal', assist: 'Connor McDavid', score: '1-0' },
-                  ].map((play, idx) => (
-                    <Card key={idx}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-16 text-center">
-                            <div className="font-bold text-gray-900">{play.period}</div>
-                            <div className="text-sm text-gray-600">{play.time}</div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="px-2 py-1 text-xs font-bold bg-blue-100 text-blue-800 rounded">{play.event}</span>
-                              <span className="font-semibold text-gray-900">{play.team}</span>
-                            </div>
-                            <div className="font-semibold text-gray-900">{play.player}</div>
-                            <div className="text-sm text-gray-600">Assisted by {play.assist}</div>
-                          </div>
-                          <div className="flex-shrink-0 font-bold text-gray-900">{play.score}</div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
               ) : null}
             </TabsContent>
 
             {/* Commentary Tab - Cricket Only */}
             {match.sport === 'Cricket' && (
               <TabsContent value="commentary" className="p-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Ball-by-Ball Commentary</h3>
-                  {[
-                    { over: '0.6', bowler: 'Suresh vs Labors', batsman: 'Iqram nemo e', runs: '4 run(s)', commentary: 'FOUR! Beautiful cover drive. Labors pitches it up and Iqram nemo drives it through the covers for a boundary.' },
-                    { over: '0.5', bowler: 'Suresh vs Labors', batsman: 'Iqram nemo e', runs: '4 run(s)', commentary: 'FOUR! Short and wide, Iqram nemo cuts it away past point for another boundary.' },
-                    { over: '0.4', bowler: 'DAlish vs Labors', batsman: 'Iqram nemo e', runs: '4 run(s)', commentary: 'FOUR! Overpitched delivery, driven straight down the ground for four runs.' },
-                    { over: '0.3', bowler: 'DAlish vs Labors', batsman: 'Iqram nemo e', runs: '2 run(s)', commentary: 'Good length delivery, worked away to the leg side for a couple of runs.' },
-                    { over: '0.2', bowler: 'DAlish vs Labors', batsman: 'Iqram nemo e', runs: '0 run(s)', commentary: 'Dot ball. Good length delivery outside off, left alone by the batsman.' },
-                    { over: '0.1', bowler: 'Suresh vs Labors', batsman: 'Iqram nemo e', runs: '1 run(s)', commentary: 'Single taken. Good length ball, pushed to mid-off for a quick single.' },
-                  ].map((ball, idx) => (
-                    <Card key={idx}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-4">
-                          <div className="flex-shrink-0 w-12 text-center">
-                            <div className="font-bold text-gray-900">{ball.over}</div>
+                <div className="space-y-2">
+                  {match.commentary && match.commentary.length > 0 ? (
+                    match.commentary.map((ball, idx) => (
+                      <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded border-b border-gray-100">
+                        <div className="flex-shrink-0 w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-bold text-gray-700">{ball.ballNumber}</span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">
+                            {ball.batsman} vs {ball.bowler} — {ball.runs} run(s)
+                          </div>
+                          {ball.overDetail && (
+                            <div className="text-xs text-gray-500 mt-1">{ball.overDetail}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="space-y-2">
+                      {/* Example commentary format */}
+                      {[
+                        { ballNumber: '19.6', batsman: 'Jasprit Bumrah', bowler: 'Ravindra Jadeja', runs: '4', overDetail: 'or yelaga chakka' },
+                        { ballNumber: '19.5', batsman: 'Rohit Sharma', bowler: 'Ravindra Jadeja', runs: '5', overDetail: 'or yelaga chakka' },
+                        { ballNumber: '19.4', batsman: 'Rohit Sharma', bowler: 'Ravindra Jadeja', runs: '6', overDetail: '' },
+                        { ballNumber: '19.3', batsman: 'Jasprit Bumrah', bowler: 'MS Dhoni', runs: '6', overDetail: '' },
+                        { ballNumber: '19.2', batsman: 'Rohit Sharma', bowler: 'MS Dhoni', runs: '3', overDetail: '' },
+                        { ballNumber: '19.1', batsman: 'Jasprit Bumrah', bowler: 'MS Dhoni', runs: '1', overDetail: '' },
+                        { ballNumber: '18.6', batsman: 'Jasprit Bumrah', bowler: 'MS Dhoni', runs: '2', overDetail: '' },
+                        { ballNumber: '18.5', batsman: 'Jasprit Bumrah', bowler: 'MS Dhoni', runs: '4', overDetail: '' },
+                        { ballNumber: '18.4', batsman: 'Rohit Sharma', bowler: 'MS Dhoni', runs: '5', overDetail: '' },
+                      ].map((ball, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded border-b border-gray-100">
+                          <div className="flex-shrink-0 w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-gray-700">{ball.ballNumber}</span>
                           </div>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-semibold text-gray-900">{ball.bowler}</span>
-                              <span className="text-sm text-gray-600">to</span>
-                              <span className="text-sm font-semibold text-gray-900">{ball.batsman}</span>
-                              <span className={`ml-auto px-2 py-1 text-xs font-bold rounded ${
-                                ball.runs.includes('4') || ball.runs.includes('6') 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : ball.runs.includes('0') 
-                                    ? 'bg-gray-100 text-gray-800'
-                                    : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {ball.runs}
-                              </span>
+                            <div className="font-medium text-gray-900">
+                              {ball.batsman} vs {ball.bowler} — {ball.runs} run(s)
                             </div>
-                            <p className="text-sm text-gray-700">{ball.commentary}</p>
+                            {ball.overDetail && (
+                              <div className="text-xs text-gray-500 mt-1">{ball.overDetail}</div>
+                            )}
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      ))}
+                      <div className="text-center py-6 text-gray-500 text-sm">
+                        <p>This is sample commentary format.</p>
+                        <p className="mt-1">Live ball-by-ball commentary will appear here during matches.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </TabsContent>
             )}

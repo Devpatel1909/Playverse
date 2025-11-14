@@ -27,10 +27,12 @@ class PublicScoreAPIService {
         },
       });
       
-      return this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      return result.data || [];
     } catch (error) {
       console.error('Error fetching live matches:', error);
-      throw error;
+      // Return empty array on error to prevent UI breaks
+      return [];
     }
   }
 
@@ -48,10 +50,11 @@ class PublicScoreAPIService {
         },
       });
       
-      return this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      return result.data || [];
     } catch (error) {
       console.error('Error fetching recent matches:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -69,10 +72,11 @@ class PublicScoreAPIService {
         },
       });
       
-      return this.handleResponse(response);
+      const result = await this.handleResponse(response);
+      return result.data || [];
     } catch (error) {
       console.error('Error fetching upcoming matches:', error);
-      throw error;
+      return [];
     }
   }
 

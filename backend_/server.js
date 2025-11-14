@@ -2,11 +2,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const superadminRoutes = require('./routes/superadmin');
 const cricketRoutes = require('./routes/cricket');
 const subadminRoutes = require('./routes/subadminRoutes');
 const sportsOverviewRoutes = require('./routes/sportsOverview');
+const publicRoutes = require('./routes/public');
 // Models for diagnostics endpoint
 // NOTE: Keep the casing consistent with actual filename 'SubAdmin.js' to avoid issues on case-sensitive systems
 const SubAdmin = require('./models/SubAdmin');
@@ -14,8 +17,28 @@ const CricketTeam = require('./models/CricketTeam');
 const SuperAdmin = require('./models/SuperAdmin');
 
 const app = express();
+const server = http.createServer(app);
 
 require('dotenv').config();
+
+// Socket.IO setup with CORS
+const io = new Server(server, {
+  cors: {
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:4173',
+      process.env.FRONTEND_ORIGIN
+    ].filter(Boolean),
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+
+// Make io accessible to routes
+app.set('io', io);
+
 // Middleware
 app.use(express.json({ limit: '10mb' })); // Increased limit for image uploads
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -24,7 +47,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cors({
   origin: [
     'http://localhost:3000', // React dev server
-    'http://localhost:5173', // Vite dev server  
+    'http://localhost:5173', // Vite dev server
+    'http://localhost:5174', // Vite dev server (alternate port)
     'http://localhost:4173', // Vite preview
     process.env.FRONTEND_ORIGIN
   ].filter(Boolean), // Remove any undefined values
@@ -101,6 +125,8 @@ app.use('/api/cricket', cricketRoutes);
 // Mount sub-admin routes (cricket specific)
 app.use('/api/cricket/sub-admins', subadminRoutes);
 app.use('/api/sports-overview', sportsOverviewRoutes);
+// Public routes (no authentication required)
+app.use('/api/public', publicRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -119,6 +145,61 @@ app.use('*', (req, res) => {
     message: 'Route not found'
   });
 });
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // Join match room for real-time updates
+  socket.on('join-match', (matchId) => {
+    socket.join(`match-${matchId}`);
+    console.log(`Client ${socket.id} joined match room: match-${matchId}`);
+  });
+
+  // Leave match room
+  socket.on('leave-match', (matchId) => {
+    socket.leave(`match-${matchId}`);
+    console.log(`Client ${socket.id} left match room: match-${matchId}`);
+  });
+
+  // Join sport room for live matches
+  socket.on('join-sport', (sport) => {
+    socket.join(`sport-${sport}`);
+    console.log(`Client ${socket.id} joined sport room: sport-${sport}`);
+  });
+
+  // Leave sport room
+  socket.on('leave-sport', (sport) => {
+    socket.leave(`sport-${sport}`);
+    console.log(`Client ${socket.id} left sport room: sport-${sport}`);
+  });
+
+  // Join all live matches room
+  socket.on('join-live-matches', () => {
+    socket.join('live-matches');
+    console.log(`Client ${socket.id} joined live-matches room`);
+  });
+
+  // Disconnect handler
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+// Helper function to emit match updates
+global.emitMatchUpdate = (matchId, data) => {
+  io.to(`match-${matchId}`).emit('match-update', data);
+};
+
+// Helper function to emit live matches updates
+global.emitLiveMatchesUpdate = (data) => {
+  io.to('live-matches').emit('live-matches-update', data);
+};
+
+// Helper function to emit sport-specific updates
+global.emitSportUpdate = (sport, data) => {
+  io.to(`sport-${sport}`).emit('sport-update', data);
+};
 
 // MongoDB connection
 // Default port (override with PORT env var). Set to 5001 per user request.
@@ -154,8 +235,9 @@ async function start() {
     const maxAttempts = 10;
 
     const startServer = (port, attempt = 1) => {
-      const server = app.listen(port, () => {
+      server.listen(port, () => {
         console.log(`Server running on http://localhost:${port}`);
+        console.log(`Socket.IO server ready on ws://localhost:${port}`);
         if (port !== initialPort) {
           console.log(`(Port fallback: original ${initialPort} was busy)`);
         }

@@ -4,6 +4,7 @@ import { Card, CardContent } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Calendar, Clock, MapPin, Search } from 'lucide-react';
 import Navigation from '../../../components/Navigation';
+import { useLiveMatchesSocket } from '../../../hooks/useSocket';
 
 const ArchivesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,288 +14,85 @@ const ArchivesPage = () => {
   const [selectedYear, setSelectedYear] = useState('2025');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Real-time updates via Socket.IO
+  const { liveMatches } = useLiveMatchesSocket();
+
   // Update selected sport when URL parameter changes
   useEffect(() => {
     setSelectedSport(searchParams.get('sport') || 'all');
   }, [searchParams]);
 
+  // Refresh data when live matches update (in case a live match just completed)
   useEffect(() => {
-    // Mock data for archived matches
-    const mockArchivedMatches = [
-      {
-        id: 'archive-1',
-        sport: 'Cricket',
-        team1: 'India',
-        team2: 'South Africa',
-        score1: '295/8',
-        score2: '287/10',
-        overs1: '50.0',
-        overs2: '49.3',
-        result: 'India won by 8 runs',
-        date: 'WED, NOV 6 2025',
-        venue: 'Melbourne Cricket Ground',
-        tournament: 'ICC World Cup 2025',
-        series: 'ICC World Cup 2025',
-        matchType: 'Semi-Final',
-        team1Logo: '🏏',
-        team2Logo: '🏏'
-      },
-      {
-        id: 'archive-2',
-        sport: 'Cricket',
-        team1: 'New Zealand',
-        team2: 'West Indies',
-        score1: '178/9',
-        score2: '175/10',
-        overs1: '20.0',
-        overs2: '19.5',
-        result: 'New Zealand won by 3 runs',
-        date: 'TUE, NOV 5 2025',
-        venue: 'Eden Park',
-        tournament: 'T20 Series',
-        series: 'New Zealand vs West Indies',
-        matchType: 'T20I - 3rd Match',
-        team1Logo: '🏏',
-        team2Logo: '🏏'
-      },
-      {
-        id: 'archive-3',
-        sport: 'Football',
-        team1: 'Barcelona',
-        team2: 'Real Madrid',
-        score1: '3',
-        score2: '2',
-        result: 'Barcelona won',
-        date: 'SUN, NOV 3 2025',
-        venue: 'Camp Nou',
-        tournament: 'La Liga',
-        series: 'La Liga 2025',
-        matchType: 'El Clásico',
-        team1Logo: '⚽',
-        team2Logo: '⚽'
-      },
-      {
-        id: 'archive-4',
-        sport: 'Basketball',
-        team1: 'Lakers',
-        team2: 'Celtics',
-        score1: '112',
-        score2: '108',
-        result: 'Lakers won',
-        date: 'SAT, NOV 2 2025',
-        venue: 'Crypto.com Arena',
-        tournament: 'NBA Regular Season',
-        series: 'NBA 2025',
-        matchType: 'Regular Season',
-        team1Logo: '🏀',
-        team2Logo: '🏀'
-      },
-      {
-        id: 'archive-5',
-        sport: 'Cricket',
-        team1: 'England',
-        team2: 'Australia',
-        score1: '267/9',
-        score2: '265/10',
-        overs1: '50.0',
-        overs2: '49.4',
-        result: 'England won by 2 runs',
-        date: 'FRI, NOV 1 2025',
-        venue: 'Lord\'s Cricket Ground',
-        tournament: 'ODI Series',
-        series: 'England vs Australia',
-        matchType: 'ODI - 5th Match',
-        team1Logo: '🏏',
-        team2Logo: '🏏'
-      },
-      {
-        id: 'archive-6',
-        sport: 'Tennis',
-        team1: 'Rafael Nadal',
-        team2: 'Roger Federer',
-        score1: '3',
-        score2: '2',
-        result: 'Nadal won (6-4, 3-6, 7-6, 4-6, 6-3)',
-        date: 'THU, OCT 31 2025',
-        venue: 'Centre Court',
-        tournament: 'ATP Finals',
-        series: 'ATP Finals 2025',
-        matchType: 'Quarter-Final',
-        team1Logo: '🎾',
-        team2Logo: '🎾'
-      },
-      {
-        id: 'archive-7',
-        sport: 'Hockey',
-        team1: 'Canada',
-        team2: 'USA',
-        score1: '4',
-        score2: '3',
-        result: 'Canada won (OT)',
-        date: 'WED, OCT 30 2025',
-        venue: 'Bell Centre',
-        tournament: 'NHL Regular Season',
-        series: 'NHL 2025',
-        matchType: 'Regular Season',
-        team1Logo: '🏒',
-        team2Logo: '🏒'
-      },
-      {
-        id: 'archive-8',
-        sport: 'Football',
-        team1: 'Manchester United',
-        team2: 'Liverpool',
-        score1: '2',
-        score2: '2',
-        result: 'Draw',
-        date: 'TUE, OCT 29 2025',
-        venue: 'Old Trafford',
-        tournament: 'Premier League',
-        series: 'Premier League 2025',
-        matchType: 'League Match',
-        team1Logo: '⚽',
-        team2Logo: '⚽'
-      },
-      {
-        id: 'archive-9',
-        sport: 'Basketball',
-        team1: 'Warriors',
-        team2: 'Nets',
-        score1: '125',
-        score2: '118',
-        result: 'Warriors won',
-        date: 'MON, OCT 28 2025',
-        venue: 'Chase Center',
-        tournament: 'NBA Regular Season',
-        series: 'NBA 2025',
-        matchType: 'Regular Season',
-        team1Logo: '🏀',
-        team2Logo: '🏀'
-      },
-      {
-        id: 'archive-10',
-        sport: 'Cricket',
-        team1: 'Pakistan',
-        team2: 'Sri Lanka',
-        score1: '342/6',
-        score2: '338/9',
-        overs1: '50.0',
-        overs2: '50.0',
-        result: 'Pakistan won by 4 runs',
-        date: 'SUN, OCT 27 2025',
-        venue: 'National Stadium',
-        tournament: 'Asia Cup',
-        series: 'Asia Cup 2025',
-        matchType: 'Final',
-        team1Logo: '🏏',
-        team2Logo: '🏏'
-      },
-      {
-        id: 'archive-11',
-        sport: 'Football',
-        team1: 'Bayern Munich',
-        team2: 'Borussia Dortmund',
-        score1: '3',
-        score2: '1',
-        result: 'Bayern Munich won',
-        date: 'SAT, OCT 26 2025',
-        venue: 'Allianz Arena',
-        tournament: 'Bundesliga',
-        series: 'Bundesliga 2025',
-        matchType: 'Der Klassiker',
-        team1Logo: '⚽',
-        team2Logo: '⚽'
-      },
-      {
-        id: 'archive-12',
-        sport: 'Tennis',
-        team1: 'Jannik Sinner',
-        team2: 'Daniil Medvedev',
-        score1: '2',
-        score2: '1',
-        result: 'Sinner won (7-6, 4-6, 6-3)',
-        date: 'FRI, OCT 25 2025',
-        venue: 'O2 Arena',
-        tournament: 'ATP Finals',
-        series: 'ATP Finals 2025',
-        matchType: 'Round Robin',
-        team1Logo: '🎾',
-        team2Logo: '🎾'
-      },
-      {
-        id: 'archive-13',
-        sport: 'Hockey',
-        team1: 'Pittsburgh Penguins',
-        team2: 'Washington Capitals',
-        score1: '4',
-        score2: '5',
-        result: 'Capitals won (SO)',
-        date: 'THU, OCT 24 2025',
-        venue: 'PPG Paints Arena',
-        tournament: 'NHL Regular Season',
-        series: 'NHL 2025',
-        matchType: 'Regular Season',
-        team1Logo: '🏒',
-        team2Logo: '🏒'
-      },
-      {
-        id: 'archive-14',
-        sport: 'Basketball',
-        team1: 'Milwaukee Bucks',
-        team2: 'Phoenix Suns',
-        score1: '128',
-        score2: '122',
-        result: 'Bucks won',
-        date: 'WED, OCT 23 2025',
-        venue: 'Fiserv Forum',
-        tournament: 'NBA Regular Season',
-        series: 'NBA 2025',
-        matchType: 'Regular Season',
-        team1Logo: '🏀',
-        team2Logo: '🏀'
-      },
-      {
-        id: 'archive-15',
-        sport: 'Football',
-        team1: 'PSG',
-        team2: 'Marseille',
-        score1: '2',
-        score2: '0',
-        result: 'PSG won',
-        date: 'TUE, OCT 22 2025',
-        venue: 'Parc des Princes',
-        tournament: 'Ligue 1',
-        series: 'Ligue 1 2025',
-        matchType: 'Le Classique',
-        team1Logo: '⚽',
-        team2Logo: '⚽'
-      }
-    ];
+    if (liveMatches && liveMatches.length > 0) {
+      // Refetch archived matches to include newly completed matches
+      const refetchMatches = async () => {
+        try {
+          const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
+          const data = await publicScoreAPI.getRecentMatches(selectedSport === 'all' ? null : selectedSport, 20);
+          setArchivedMatches(data || []);
+        } catch (error) {
+          console.error('Error refetching archived matches:', error);
+        }
+      };
+      refetchMatches();
+    }
+  }, [liveMatches, selectedSport]);
 
-    setArchivedMatches(mockArchivedMatches);
-    setLoading(false);
-  }, []);
+  useEffect(() => {
+    const fetchArchivedMatches = async () => {
+      try {
+        setLoading(true);
+        // Fetch from real API
+        const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
+        const data = await publicScoreAPI.getRecentMatches(selectedSport === 'all' ? null : selectedSport, 20);
+        
+        setArchivedMatches(data || []);
+      } catch (error) {
+        console.error('Error fetching archived matches:', error);
+        setArchivedMatches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArchivedMatches();
+  }, [selectedSport]);
 
   const sports = ['all', 'Cricket', 'Football', 'Basketball', 'Tennis', 'Hockey'];
   const years = ['2025', '2024', '2023', '2022', '2021'];
 
   const filteredMatches = archivedMatches
     .filter(match => selectedSport === 'all' || match.sport === selectedSport)
-    .filter(match => match.date.includes(selectedYear))
+    .filter(match => {
+      if (!match.endTime && !match.date) return true;
+      const matchDate = match.endTime || match.date;
+      const year = new Date(matchDate).getFullYear().toString();
+      return year === selectedYear;
+    })
     .filter(match => 
       searchQuery === '' || 
-      match.team1.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      match.team2.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      match.tournament.toLowerCase().includes(searchQuery.toLowerCase())
+      match.team1?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      match.team2?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      match.tournament?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      match.series?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
   // Group matches by date
   const groupedMatches = filteredMatches.reduce((groups, match) => {
-    const date = match.date;
-    if (!groups[date]) {
-      groups[date] = [];
+    const matchDate = match.endTime || match.date || new Date().toISOString();
+    const dateObj = new Date(matchDate);
+    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    }).toUpperCase();
+    
+    if (!groups[formattedDate]) {
+      groups[formattedDate] = [];
     }
-    groups[date].push(match);
+    groups[formattedDate].push(match);
     return groups;
   }, {});
 
@@ -440,9 +238,12 @@ const ArchivesPage = () => {
                               </div>
 
                               {/* Tournament */}
-                              <div className="text-sm text-gray-600">
-                                {match.series} • {match.matchType}
-                              </div>
+                              {(match.series || match.tournament || match.matchType) && (
+                                <div className="text-sm text-gray-600">
+                                  {match.series || match.tournament || 'Match'}
+                                  {match.matchType && ` • ${match.matchType}`}
+                                </div>
+                              )}
                             </div>
 
                             {/* Right Section - Venue */}

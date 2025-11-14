@@ -17,8 +17,18 @@ const SchedulePage = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    // Mock data for upcoming matches
-    const mockUpcomingMatches = [
+    const fetchUpcomingMatches = async () => {
+      try {
+        setLoading(true);
+        // Fetch from real API
+        const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
+        const data = await publicScoreAPI.getUpcomingMatches(selectedSport === 'all' ? null : selectedSport, 20);
+        
+        if (data && data.length > 0) {
+          setUpcomingMatches(data);
+        } else {
+          // Fallback to mock data if no real data
+          const mockUpcomingMatches = [
       {
         id: 'upcoming-1',
         sport: 'Cricket',
@@ -229,11 +239,19 @@ const SchedulePage = () => {
         team1Logo: '🏒',
         team2Logo: '🏒'
       }
-    ];
+          ];
+          setUpcomingMatches(mockUpcomingMatches);
+        }
+      } catch (error) {
+        console.error('Error fetching upcoming matches:', error);
+        setUpcomingMatches([]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    setUpcomingMatches(mockUpcomingMatches);
-    setLoading(false);
-  }, []);
+    fetchUpcomingMatches();
+  }, [selectedSport]);
 
   const sports = ['all', 'Cricket', 'Football', 'Basketball', 'Tennis', 'Hockey'];
 

@@ -4,8 +4,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Badge } from '../../../components/ui/badge';
 import { Separator } from '../../../components/ui/separator';
-import { Clock, Calendar, MapPin } from 'lucide-react';
+import { Clock, Calendar, MapPin, Wifi, WifiOff } from 'lucide-react';
 import Navigation from '../../../components/Navigation';
+import { useLiveMatchesSocket } from '../../../hooks/useSocket';
 
 const PublicScoreView = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -14,18 +15,36 @@ const PublicScoreView = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSport, setSelectedSport] = useState(searchParams.get('sport') || 'all');
   const [featuredNews, setFeaturedNews] = useState([]);
+  
+  // Socket.IO integration for real-time updates
+  const { connected, liveMatches: socketLiveMatches } = useLiveMatchesSocket();
 
   // Update selected sport when URL parameter changes
   useEffect(() => {
     setSelectedSport(searchParams.get('sport') || 'all');
   }, [searchParams]);
 
+  // Update live matches from Socket.IO
+  useEffect(() => {
+    if (socketLiveMatches && socketLiveMatches.length > 0) {
+      setLiveMatches(socketLiveMatches);
+    }
+  }, [socketLiveMatches]);
+
   useEffect(() => {
     const fetchScores = async () => {
-      // Using mock data for demo - comment out to use real API
       try {
-        // Fallback to mock data for demo
-        setLiveMatches([
+        // Try to fetch from real API first
+        const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
+        const liveData = await publicScoreAPI.getLiveMatches(selectedSport === 'all' ? null : selectedSport);
+        const recentData = await publicScoreAPI.getRecentMatches(selectedSport === 'all' ? null : selectedSport, 10);
+        
+        // If we have real data, use it
+        if (liveData && liveData.length > 0) {
+          setLiveMatches(liveData);
+        } else {
+          // Fallback to mock data for demo
+          setLiveMatches([
           {
             id: 1,
             sport: 'Cricket',
@@ -140,7 +159,12 @@ const PublicScoreView = () => {
             team2Logo: '🏒'
           }
         ]);
-        setRecentMatches([
+        }
+        
+        if (recentData && recentData.length > 0) {
+          setRecentMatches(recentData);
+        } else {
+          setRecentMatches([
           {
             id: 'recent-1',
             sport: 'Cricket',
@@ -250,6 +274,7 @@ const PublicScoreView = () => {
             team2Logo: '🏒'
           }
         ]);
+        }
         
         // Mock news data
         setFeaturedNews([
@@ -344,23 +369,40 @@ const PublicScoreView = () => {
       {/* Sports Navigation Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
         <div className="px-4 mx-auto max-w-7xl">
-          <div className="flex items-center py-3 space-x-1 overflow-x-auto">
-            {sports.map((sport) => (
-              <button
-                key={sport}
-                onClick={() => {
-                  setSelectedSport(sport);
-                  setSearchParams(sport === 'all' ? {} : { sport });
-                }}
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-colors ${
-                  selectedSport === sport
-                    ? 'bg-red-600 text-white'
-                    : 'text-gray-900 bg-gray-50 hover:bg-gray-200 hover:text-black border border-gray-300'
-                }`}
-              >
-                {sport === 'all' ? 'All Sports' : sport}
-              </button>
-            ))}
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center space-x-1 overflow-x-auto">
+              {sports.map((sport) => (
+                <button
+                  key={sport}
+                  onClick={() => {
+                    setSelectedSport(sport);
+                    setSearchParams(sport === 'all' ? {} : { sport });
+                  }}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap rounded-md transition-colors ${
+                    selectedSport === sport
+                      ? 'bg-red-600 text-white'
+                      : 'text-gray-900 bg-gray-50 hover:bg-gray-200 hover:text-black border border-gray-300'
+                  }`}
+                >
+                  {sport === 'all' ? 'All Sports' : sport}
+                </button>
+              ))}
+            </div>
+            
+            {/* Real-time connection status */}
+            <div className="flex items-center ml-4 space-x-2">
+              {connected ? (
+                <>
+                  <Wifi className="w-4 h-4 text-green-600" />
+                  <span className="text-xs font-medium text-green-600">Live</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs font-medium text-gray-400">Offline</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
