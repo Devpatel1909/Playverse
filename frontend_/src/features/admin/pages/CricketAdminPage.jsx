@@ -435,7 +435,7 @@ const CricketAdminPage = () => {
                 { label: 'Teams', value: teams.length, icon: '🏟️', color: 'from-emerald-500 to-teal-500', shadowColor: 'emerald' },
                 { label: 'Players', value: allPlayers.length, icon: '🏏', color: 'from-blue-500 to-indigo-500', shadowColor: 'blue' },
                 { label: 'Matches', value: matches.length, icon: '⚡', color: 'from-amber-500 to-orange-500', shadowColor: 'amber' },
-                { label: 'Live', value: matches.filter(m => m.isLive || m.status === 'live').length, icon: '🔴', color: 'from-red-500 to-pink-500', shadowColor: 'red' }
+                { label: 'Live', value: matches.filter(m => (m.isLive || m.status === 'live') && m.status !== 'completed').length, icon: '🔴', color: 'from-red-500 to-pink-500', shadowColor: 'red' }
               ].map((stat, index) => (
                 <motion.div 
                   key={stat.label}
@@ -819,10 +819,10 @@ const CricketAdminPage = () => {
                 {loadingMatches ? '🔄 Loading...' : '🔄 Refresh'}
               </button>
             </div>
-            {loadingMatches ? <div>Loading matches...</div> : matches.filter(m => m.isLive || m.status === 'live').length === 0 ? (
+            {loadingMatches ? <div>Loading matches...</div> : matches.filter(m => (m.isLive || m.status === 'live') && m.status !== 'completed').length === 0 ? (
               <div className="text-slate-400">No live matches currently. Start scoring from scheduled matches.</div>
             ) : (
-              <div className="space-y-3">{matches.filter(m => m.isLive || m.status === 'live').map(m => (
+              <div className="space-y-3">{matches.filter(m => (m.isLive || m.status === 'live') && m.status !== 'completed').map(m => (
                 <div key={m._id} className="p-4 border rounded bg-white/5">
                   <div className="flex items-center justify-between mb-3">
                     <div>

@@ -108,7 +108,7 @@ const ArchivesPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 overflow-x-hidden w-full">
+    <div className="w-full min-h-screen overflow-x-hidden bg-gray-100">
       <Navigation />
 
       {/* Header */}
@@ -197,18 +197,18 @@ const ArchivesPage = () => {
                       to={`/match/${match.id}`}
                       state={{ fromSport: selectedSport }}
                     >
-                      <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+                      <Card className="overflow-hidden transition-shadow cursor-pointer hover:shadow-lg">
                         <CardContent className="p-0">
                           <div className="flex flex-col md:flex-row">
                             {/* Left Section - Match Info */}
                             <div className="flex-1 p-6">
                               <div className="flex items-center justify-between mb-4">
                                 <Badge variant="outline" className="text-xs">{match.sport}</Badge>
-                                <Badge className="bg-green-100 text-green-800 text-xs">COMPLETED</Badge>
+                                <Badge className="text-xs text-green-800 bg-green-100">COMPLETED</Badge>
                               </div>
 
                               {/* Teams and Scores */}
-                              <div className="space-y-3 mb-4">
+                              <div className="mb-4 space-y-3">
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-3">
                                     <span className="text-2xl">{match.team1Logo}</span>
@@ -217,7 +217,7 @@ const ArchivesPage = () => {
                                   <span className="text-2xl font-bold text-gray-900">{match.score1}</span>
                                 </div>
                                 {match.overs1 && (
-                                  <div className="text-sm text-gray-600 text-right">({match.overs1} Ov)</div>
+                                  <div className="text-sm text-right text-gray-600">({match.overs1} Ov)</div>
                                 )}
                                 
                                 <div className="flex items-center justify-between">
@@ -228,7 +228,7 @@ const ArchivesPage = () => {
                                   <span className="text-2xl font-bold text-gray-900">{match.score2}</span>
                                 </div>
                                 {match.overs2 && (
-                                  <div className="text-sm text-gray-600 text-right">({match.overs2} Ov)</div>
+                                  <div className="text-sm text-right text-gray-600">({match.overs2} Ov)</div>
                                 )}
                               </div>
 
@@ -247,7 +247,7 @@ const ArchivesPage = () => {
                             </div>
 
                             {/* Right Section - Venue */}
-                            <div className="p-6 bg-gray-50 md:w-64 border-t md:border-t-0 md:border-l">
+                            <div className="p-6 border-t bg-gray-50 md:w-64 md:border-t-0 md:border-l">
                               <div className="space-y-3">
                                 <div className="flex items-start space-x-2">
                                   <MapPin className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />

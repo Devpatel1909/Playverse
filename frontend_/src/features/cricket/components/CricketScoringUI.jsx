@@ -787,17 +787,39 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [winner, setWinner] = useState(null);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [showTossDialog, setShowTossDialog] = useState(!initialMatch && !seedMatch.toss);
+  const [showTossDialog, setShowTossDialog] = useState(() => {
+    const hasToss = initialMatch ? (initialMatch.toss && initialMatch.toss.winner) : (seedMatch.toss && seedMatch.toss.winner);
+    return !hasToss;
+  });
   const [tossWinner, setTossWinner] = useState("");
   const [tossDecision, setTossDecision] = useState("");
   const current = match.innings[match.currentInningsIndex];
 
-  //
+  // Check if toss dialog should be shown when match loads
+  useEffect(() => {
+    if (initialMatch) {
+      const hasToss = initialMatch.toss && initialMatch.toss.winner;
+      console.log('[CricketScoringUI] Checking toss on mount:', { hasToss, toss: initialMatch.toss });
+      setShowTossDialog(!hasToss);
+    }
+  }, [initialMatch]);
+
+//
   // Auto-save to database whenever match state changes (debounced)
   //
   useEffect(() => {
     const syncToDatabase = async () => {
       if (!matchId || isSyncing) return;
+
+      // Don't sync if match is already completed
+      const is2ndInnings = match.currentInningsIndex === 1;
+      const secondInnings = match.innings[1];
+      const isMatchCompleted = is2ndInnings && secondInnings?.complete;
+      
+      if (isMatchCompleted) {
+        console.log('[CricketScoringUI] Match is completed, skipping auto-sync');
+        return;
+      }
 
       try {
         setIsSyncing(true);
@@ -815,7 +837,12 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
             wickets: secondInnings ? secondInnings.wickets : 0
           },
           overs: formatOvers(current.deliveries),
-          status: 'live' // Match is live during scoring
+          status: 'live', // Match is live during scoring
+          matchData: {
+            innings: match.innings,
+            toss: match.toss,
+            currentInningsIndex: match.currentInningsIndex
+          }
         };
 
         console.log('[CricketScoringUI] Syncing score to database:', scoreData);
@@ -831,7 +858,6 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
     const timeoutId = setTimeout(syncToDatabase, 1000);
     return () => clearTimeout(timeoutId);
   }, [match, matchId, current, isSyncing]);
-
   // Handle toss and arrange teams accordingly
   const handleTossSubmit = useCallback(() => {
     if (!tossWinner || !tossDecision) {
@@ -995,23 +1021,36 @@ const CricketLiveScoringUI = ({ initialMatch, matchId }) => {
         },
         overs: `${innings2.oversBowled}.${ballsInOver}`,
         status: 'completed',
-        result: resultText
+        result: resultText,
+        matchData: {
+          innings: match.innings,
+          toss: match.toss
+        }
       };
 
       console.log('[CricketScoring] Saving completed match:', { matchId, scoreData });
       
       await cricketAPIService.updateMatchScore(matchId, scoreData);
       
-      // Calculate and save player statistics
-      const playerStats = calculatePlayerStats();
-      console.log('[CricketScoring] Saving player statistics:', playerStats);
+      // Calculate and save player statistics (non-blocking)
+      try {
+        const playerStats = calculatePlayerStats();
+        console.log('[CricketScoring] Saving player statistics:', playerStats);
+        await cricketAPIService.updatePlayerStats(matchId, playerStats);
+        console.log('[CricketScoring] Player stats saved successfully');
+      } catch (statsError) {
+        console.error('[CricketScoring] Failed to save player stats (non-critical):', statsError);
+        // Continue anyway - player stats update is optional
+      }
       
-      await cricketAPIService.updatePlayerStats(matchId, playerStats);
+      console.log('[CricketScoring] Match saved successfully to database');
       
-      console.log('[CricketScoring] Match and player stats saved successfully to database');
+      // Redirect to cricket management page after 2 seconds
+      setTimeout(() => {
+        window.location.href = '/admin/cricket';
+      }, 2000);
     } catch (error) {
       console.error('[CricketScoring] Failed to save completed match:', error);
-      // Don't block the celebration, just log the error
       alert(`Match completed but failed to save to database: ${error.message}`);
     }
   }, [match, matchId, calculatePlayerStats]);

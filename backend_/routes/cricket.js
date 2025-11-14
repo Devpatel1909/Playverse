@@ -17,7 +17,8 @@ const {
   createMatch,
   updateMatch,
   deleteMatch,
-  updateMatchScore
+  updateMatchScore,
+  updatePlayerStats
 } = require('../controllers/cricketController');
 
 // Import auth middleware
@@ -49,5 +50,6 @@ router.post('/matches', optionalAuthMiddleware, createMatch);
 router.put('/matches/:id', optionalAuthMiddleware, updateMatch);
 router.delete('/matches/:id', optionalAuthMiddleware, deleteMatch);
 router.put('/matches/:id/score', optionalAuthMiddleware, updateMatchScore);
+router.put('/matches/:id/players/stats', optionalAuthMiddleware, updatePlayerStats);
 
 module.exports = router;

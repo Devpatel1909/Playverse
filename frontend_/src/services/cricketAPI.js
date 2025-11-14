@@ -388,7 +388,10 @@ class CricketAPIService {
 
   async updatePlayerStats(matchId, playerStats) {
     try {
-      const response = await fetch(`${this.baseURL}/matches/${matchId}/players/stats`, {
+      const url = `${this.baseURL}/matches/${matchId}/players/stats`;
+      console.log('[CricketAPI] Updating player stats:', { url, matchId, playerCount: playerStats.length });
+      
+      const response = await fetch(url, {
         method: 'PUT',
         headers: this.getHeaders(),
         body: JSON.stringify({ playerStats })

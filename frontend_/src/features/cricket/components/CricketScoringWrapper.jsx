@@ -55,8 +55,8 @@ const CricketScoringWrapper = () => {
               }))
             }
           ],
-          toss: match.toss || { winner: match.teamA?.name || 'Team A', elected: 'BAT' },
-          innings: match.innings || [
+          toss: match.matchData?.toss || match.toss || null,
+          innings: match.matchData?.innings || match.innings || [
             {
               battingTeam: match.teamA?.name || 'Team A',
               bowlingTeam: match.teamB?.name || 'Team B',

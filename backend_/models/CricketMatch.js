@@ -45,7 +45,12 @@ const CricketMatchSchema = new mongoose.Schema(
       overDetail: { type: String }, // Additional detail like "or yelaga chakka"
       commentary: { type: String }, // Full commentary text
       timestamp: { type: Date, default: Date.now }
-    }]
+    }],
+    // Match data for live scoring (includes innings, deliveries, etc.)
+    matchData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    }
   },
   { timestamps: true }
 );

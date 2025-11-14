@@ -1,6 +1,7 @@
 const CricketTeam = require('../models/CricketTeam');
 const CricketMatch = require('../models/CricketMatch');
 const mongoose = require('mongoose');
+const { emitScoreUpdate } = require('../middleware/socketEmitter');
 
 // Get all cricket teams
 const getAllTeams = async (req, res) => {
@@ -710,7 +711,7 @@ module.exports = {
   updateMatchScore: async (req, res) => {
     try {
       const { id } = req.params;
-      const { teamA, teamB, overs, status, result } = req.body;
+      const { teamA, teamB, overs, status, result, matchData } = req.body;
 
       if (!mongoose.Types.ObjectId.isValid(id)) {
         return res.status(400).json({ success: false, message: 'Invalid match id' });
@@ -733,13 +734,21 @@ module.exports = {
       }
       if (status) match.status = status;
       if (result !== undefined) match.result = result;
+      
+      // Save matchData (innings, deliveries, etc.)
+      if (matchData !== undefined) {
+        match.matchData = matchData;
+      }
 
       await match.save();
       
       // Re-fetch the match with populated fields
       const populated = await CricketMatch.findById(match._id)
-        .populate('teamA', 'name shortName')
-        .populate('teamB', 'name shortName');
+        .populate('teamA', 'name shortName players')
+        .populate('teamB', 'name shortName players');
+
+      // Emit real-time update via Socket.IO
+      emitScoreUpdate(req, id, populated);
 
       res.status(200).json({ success: true, message: 'Score updated', data: populated });
     } catch (error) {
@@ -812,6 +821,58 @@ module.exports = {
       });
     }
   },
+
+  // Update Player Stats after match completion
+  updatePlayerStats: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { playerStats } = req.body;
+
+      if (!playerStats || !Array.isArray(playerStats)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Player stats array is required'
+        });
+      }
+
+      // Update each player's stats
+      for (const stats of playerStats) {
+        const { playerId, teamId, runs, wickets } = stats;
+        
+        const team = await CricketTeam.findById(teamId);
+        if (!team) continue;
+
+        const player = team.players.find(p => p._id.toString() === playerId);
+        if (!player) continue;
+
+        // Initialize stats if not present
+        if (!player.stats) {
+          player.stats = { matches: 0, runs: 0, wickets: 0 };
+        }
+
+        // Update player stats
+        player.stats.matches = (player.stats.matches || 0) + 1;
+        player.stats.runs = (player.stats.runs || 0) + runs;
+        player.stats.wickets = (player.stats.wickets || 0) + wickets;
+
+        await team.save();
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Player stats updated successfully',
+        data: { matchId: id, updatedPlayers: playerStats.length }
+      });
+    } catch (error) {
+      console.error('Error updating player stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update player stats',
+        error: error.message
+      });
+    }
+  },
+
   deleteMatch: async (req, res) => {
     try {
       const { id } = req.params;

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Users, Calendar, CheckCircle2, TrendingUp, Activity, Target, Award, Globe, Cpu, Database, BarChart3, Sparkles, X, Search, Bell, Settings, LogOut, ChevronRight, Upload, ImageIcon, Trash2, Save, Camera } from 'lucide-react';
 import superAdminAPIService from '../../../services/superAdminAPI';
+import cricketAPIService from '../../../services/cricketAPI';
 
 const SportsDashboard = () => {
   const navigate = useNavigate();
@@ -21,45 +22,22 @@ const SportsDashboard = () => {
     activeMatches: 0,
     upcomingMatches: 0
   });
-  // Get cricket data from localStorage or use default
-  const getCricketData = () => {
-    try {
-      const storedTeams = localStorage.getItem('cricketTeams');
-      if (storedTeams) {
-        const teams = JSON.parse(storedTeams);
-        const totalPlayers = teams.reduce((total, team) => total + (team.players?.length || 0), 0);
-        return {
-          teams: teams.length,
-          players: totalPlayers,
-          teamList: teams.map(team => ({
-            id: team.id,
-            name: team.name,
-            shortName: team.shortName,
-            logo: team.logo,
-            playerCount: team.players?.length || 0
-          }))
-        };
-      }
-    } catch (error) {
-      console.warn('Error loading cricket data from localStorage:', error);
-    }
-    return { teams: 3, players: 9, teamList: [] };
-  };
+  const [loading, setLoading] = useState(true);
 
   const [sportsData, setSportsData] = useState([
     {
       id: 1,
       name: 'Cricket',
       icon: '🏏',
-      players: getCricketData().players,
-      teams: getCricketData().teams,
-      matches: 25,
+      players: 0,
+      teams: 0,
+      matches: 0,
       status: 'active',
       progress: 65,
       description: 'Premier cricket tournament with international standards',
-      nextMatch: 'Finals - Team A vs Team B',
+      nextMatch: 'Loading...',
       color: 'from-emerald-500 to-green-600',
-      teamList: getCricketData().teamList
+      teamList: []
     },
     {
       id: 2,
@@ -184,83 +162,106 @@ const SportsDashboard = () => {
   ]);
   const containerRef = useRef(null);
 
-  // Refresh cricket data from localStorage
-  const refreshCricketData = useCallback(() => {
-    const cricketData = getCricketData();
-    setSportsData(prevData => 
-      prevData.map(sport => 
-        sport.name === 'Cricket' 
-          ? { 
-              ...sport, 
-              teams: cricketData.teams,
-              players: cricketData.players,
-              teamList: cricketData.teamList
-            }
-          : sport
-      )
-    );
-    
-    // Update dashboard stats with current cricket data
-    setDashboardStats(prevStats => {
-      const currentCricketData = prevStats.totalPlayers ? getCricketData() : { players: 0, teams: 0 };
-      return {
+  // Fetch cricket data from database
+  const fetchCricketData = useCallback(async () => {
+    try {
+      console.log('Fetching cricket data from database...');
+      
+      // Fetch teams, matches
+      const [teamsResponse, matchesResponse] = await Promise.all([
+        cricketAPIService.getAllTeams(),
+        cricketAPIService.getAllMatches()
+      ]);
+
+      const teams = teamsResponse.data || [];
+      const matches = matchesResponse.data || [];
+      
+      // Calculate total players from all teams
+      const totalPlayers = teams.reduce((total, team) => {
+        return total + (team.players?.length || 0);
+      }, 0);
+
+      // Calculate match statistics
+      const completedMatches = matches.filter(m => m.status === 'completed').length;
+      const activeMatches = matches.filter(m => m.status === 'live').length;
+      const upcomingMatches = matches.filter(m => m.status === 'scheduled').length;
+
+      // Update cricket sport data
+      setSportsData(prevData => 
+        prevData.map(sport => 
+          sport.name === 'Cricket' 
+            ? { 
+                ...sport, 
+                teams: teams.length,
+                players: totalPlayers,
+                matches: matches.length,
+                teamList: teams.map(team => ({
+                  id: team._id,
+                  name: team.name,
+                  shortName: team.shortName,
+                  logo: team.logo,
+                  playerCount: team.players?.length || 0
+                }))
+              }
+            : sport
+        )
+      );
+      
+      // Update dashboard stats with real data
+      setDashboardStats(prevStats => ({
         ...prevStats,
-        totalPlayers: Math.max(prevStats.totalPlayers + cricketData.players - (currentCricketData.players || 0), cricketData.players),
-        totalTeams: Math.max(prevStats.totalTeams + cricketData.teams - (currentCricketData.teams || 0), cricketData.teams)
-      };
-    });
+        totalPlayers: totalPlayers + 743, // Add other sports' static players
+        totalSports: 8,
+        totalTeams: teams.length + 131, // Add other sports' static teams
+        matchesCompleted: completedMatches,
+        activeMatches: activeMatches,
+        upcomingMatches: upcomingMatches
+      }));
+
+      console.log('Cricket data loaded:', { teams: teams.length, players: totalPlayers, matches: matches.length });
+    } catch (error) {
+      console.error('Error fetching cricket data:', error);
+    }
   }, []);
 
   // Load dashboard data from API
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        console.log('Loading dashboard data...');
+        setLoading(true);
+        console.log('Loading dashboard data from database...');
 
-        // Refresh cricket data from localStorage
-        refreshCricketData();
-
-        // Use static data for dashboard stats (since we removed backend integration)
-        const cricketData = getCricketData();
-        setDashboardStats({
-          totalPlayers: cricketData.players + 743, // Add other sports' static players
-          totalSports: 8,
-          totalTeams: cricketData.teams + 131, // Add other sports' static teams
-          matchesCompleted: 82,
-          activeMatches: 12,
-          upcomingMatches: 28
-        });
+        // Fetch cricket data from database
+        await fetchCricketData();
 
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
     loadDashboardData();
-  }, [refreshCricketData]);
+    
+    // Refresh data every 30 seconds
+    const interval = setInterval(loadDashboardData, 30000);
+    
+    return () => clearInterval(interval);
+  }, [fetchCricketData]);
 
-  // Listen for storage changes (when data is updated in cricket management)
+  // Listen for cricket data updates
   useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'cricketTeams') {
-        refreshCricketData();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom events when localStorage is updated in the same tab
     const handleCricketUpdate = () => {
-      refreshCricketData();
+      console.log('Cricket data updated, refreshing...');
+      fetchCricketData();
     };
     
-    window.addEventListener('cricketTeamsUpdated', handleCricketUpdate);
+    window.addEventListener('cricketDataUpdated', handleCricketUpdate);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('cricketTeamsUpdated', handleCricketUpdate);
+      window.removeEventListener('cricketDataUpdated', handleCricketUpdate);
     };
-  }, [refreshCricketData]);
+  }, [fetchCricketData]);
 
   // Optimized mouse tracking with throttling
   useEffect(() => {

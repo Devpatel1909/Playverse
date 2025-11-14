@@ -7,6 +7,7 @@ import { Separator } from '../../../components/ui/separator';
 import { Clock, Calendar, MapPin, Wifi, WifiOff } from 'lucide-react';
 import Navigation from '../../../components/Navigation';
 import { useLiveMatchesSocket } from '../../../hooks/useSocket';
+import socketService from '../../../services/socketService';
 
 const PublicScoreView = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +16,7 @@ const PublicScoreView = () => {
   const [loading, setLoading] = useState(true);
   const [selectedSport, setSelectedSport] = useState(searchParams.get('sport') || 'all');
   const [featuredNews, setFeaturedNews] = useState([]);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
   
   // Socket.IO integration for real-time updates
   const { connected, liveMatches: socketLiveMatches } = useLiveMatchesSocket();
@@ -28,296 +30,68 @@ const PublicScoreView = () => {
   useEffect(() => {
     if (socketLiveMatches && socketLiveMatches.length > 0) {
       setLiveMatches(socketLiveMatches);
+      setLastUpdate(new Date());
     }
   }, [socketLiveMatches]);
+
+  // Listen for score updates
+  useEffect(() => {
+    socketService.connect();
+    socketService.joinLiveMatches();
+
+    const handleScoreUpdate = async (data) => {
+      console.log('[PublicScoreView] Score update received:', data);
+      
+      // Refresh live matches when score updates
+      try {
+        const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
+        const liveData = await publicScoreAPI.getLiveMatches(selectedSport === 'all' ? null : selectedSport);
+        setLiveMatches(liveData || []);
+        setLastUpdate(new Date());
+      } catch (error) {
+        console.error('[PublicScoreView] Error refreshing after score update:', error);
+      }
+    };
+
+    const socket = socketService.getSocket();
+    if (socket) {
+      socket.on('score-update', handleScoreUpdate);
+      socket.on('match-update', handleScoreUpdate);
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('score-update', handleScoreUpdate);
+        socket.off('match-update', handleScoreUpdate);
+      }
+    };
+  }, [selectedSport]);
 
   useEffect(() => {
     const fetchScores = async () => {
       try {
-        // Try to fetch from real API first
+        // Fetch from real API
         const publicScoreAPI = (await import('../../../services/publicScoreAPI')).default;
         const liveData = await publicScoreAPI.getLiveMatches(selectedSport === 'all' ? null : selectedSport);
         const recentData = await publicScoreAPI.getRecentMatches(selectedSport === 'all' ? null : selectedSport, 10);
         
-        // If we have real data, use it
-        if (liveData && liveData.length > 0) {
-          setLiveMatches(liveData);
-        } else {
-          // Fallback to mock data for demo
-          setLiveMatches([
-          {
-            id: 1,
-            sport: 'Cricket',
-            team1: 'Australia',
-            team2: 'India',
-            score1: '185/4',
-            score2: '120/3',
-            overs1: '20.0',
-            overs2: '15.2',
-            status: 'live',
-            venue: 'The Gabba, Brisbane',
-            tournament: 'India tour of Australia, 2025',
-            time: 'Live',
-            team1Logo: '🏏',
-            team2Logo: '🏏',
-            toss: 'Australia won the toss and opt to Bowl',
-            umpires: 'Rod Tucker, Shawn Craig',
-            referee: 'Jeff Crowe',
-            stadium: 'The Gabba',
-            city: 'Brisbane, Australia',
-            capacity: '42000 (approx)',
-            currentBatsman: {
-              striker: 'Abhishek Sharma',
-              strikerRuns: 23,
-              nonStriker: 'Shubman Gill',
-              nonStrikerRuns: 29
-            },
-            currentBowler: {
-              name: 'Ben Dwarshuis',
-              overs: '3.2',
-              runs: 27,
-              wickets: 0,
-              maidens: 0
-            }
-          },
-          {
-            id: 2,
-            sport: 'Cricket',
-            team1: 'England',
-            team2: 'Pakistan',
-            score1: '245/6',
-            score2: '198/8',
-            overs1: '50.0',
-            overs2: '45.3',
-            status: 'live',
-            venue: 'Lord\'s Cricket Ground',
-            tournament: 'ICC World Cup 2025',
-            time: 'Live',
-            team1Logo: '🏏',
-            team2Logo: '🏏',
-            toss: 'England won the toss and opt to Bat',
-            umpires: 'Kumar Dharmasena, Marais Erasmus',
-            referee: 'Ranjan Madugalle',
-            stadium: 'Lord\'s',
-            city: 'London, England',
-            capacity: '30000 (approx)'
-          },
-          {
-            id: 3,
-            sport: 'Football',
-            team1: 'Manchester United',
-            team2: 'Liverpool',
-            score1: '2',
-            score2: '1',
-            status: 'live',
-            time: '67\' - 2nd Half',
-            venue: 'Old Trafford',
-            tournament: 'Premier League',
-            team1Logo: '⚽',
-            team2Logo: '⚽'
-          },
-          {
-            id: 4,
-            sport: 'Basketball',
-            team1: 'LA Lakers',
-            team2: 'Golden State Warriors',
-            score1: '98',
-            score2: '102',
-            status: 'live',
-            time: 'Q4 - 2:45',
-            venue: 'Crypto.com Arena',
-            tournament: 'NBA Regular Season',
-            team1Logo: '🏀',
-            team2Logo: '🏀'
-          },
-          {
-            id: 5,
-            sport: 'Tennis',
-            team1: 'Carlos Alcaraz',
-            team2: 'Novak Djokovic',
-            score1: '6-4, 3-6, 5-4',
-            score2: '',
-            status: 'live',
-            time: 'Set 3 - In Progress',
-            venue: 'Centre Court',
-            tournament: 'ATP Finals',
-            team1Logo: '🎾',
-            team2Logo: '🎾'
-          },
-          {
-            id: 6,
-            sport: 'Hockey',
-            team1: 'Toronto Maple Leafs',
-            team2: 'Montreal Canadiens',
-            score1: '3',
-            score2: '2',
-            status: 'live',
-            time: 'P2 - 8:23',
-            venue: 'Scotiabank Arena',
-            tournament: 'NHL Regular Season',
-            team1Logo: '🏒',
-            team2Logo: '🏒'
-          }
-        ]);
-        }
-        
-        if (recentData && recentData.length > 0) {
-          setRecentMatches(recentData);
-        } else {
-          setRecentMatches([
-          {
-            id: 'recent-1',
-            sport: 'Cricket',
-            team1: 'India',
-            team2: 'South Africa',
-            score1: '295/8',
-            score2: '287/10',
-            overs1: '50.0',
-            overs2: '49.3',
-            status: 'completed',
-            result: 'India won by 8 runs',
-            venue: 'Melbourne Cricket Ground',
-            team1Logo: '🏏',
-            team2Logo: '🏏'
-          },
-          {
-            id: 'recent-2',
-            sport: 'Cricket',
-            team1: 'New Zealand',
-            team2: 'West Indies',
-            score1: '178/9',
-            score2: '175/10',
-            overs1: '20.0',
-            overs2: '19.5',
-            status: 'completed',
-            result: 'New Zealand won by 3 runs',
-            venue: 'Eden Park',
-            team1Logo: '🏏',
-            team2Logo: '🏏'
-          },
-          {
-            id: 'recent-3',
-            sport: 'Football',
-            team1: 'Barcelona',
-            team2: 'Real Madrid',
-            score1: '3',
-            score2: '2',
-            status: 'completed',
-            result: 'Barcelona won',
-            venue: 'Camp Nou',
-            team1Logo: '⚽',
-            team2Logo: '⚽'
-          },
-          {
-            id: 'recent-4',
-            sport: 'Football',
-            team1: 'Manchester City',
-            team2: 'Arsenal',
-            score1: '2',
-            score2: '2',
-            status: 'completed',
-            result: 'Draw',
-            venue: 'Etihad Stadium',
-            team1Logo: '⚽',
-            team2Logo: '⚽'
-          },
-          {
-            id: 'recent-5',
-            sport: 'Basketball',
-            team1: 'Boston Celtics',
-            team2: 'Miami Heat',
-            score1: '118',
-            score2: '112',
-            status: 'completed',
-            result: 'Celtics won',
-            venue: 'TD Garden',
-            team1Logo: '🏀',
-            team2Logo: '🏀'
-          },
-          {
-            id: 'recent-6',
-            sport: 'Basketball',
-            team1: 'Brooklyn Nets',
-            team2: 'Philadelphia 76ers',
-            score1: '105',
-            score2: '110',
-            status: 'completed',
-            result: '76ers won',
-            venue: 'Barclays Center',
-            team1Logo: '🏀',
-            team2Logo: '🏀'
-          },
-          {
-            id: 'recent-7',
-            sport: 'Tennis',
-            team1: 'Iga Swiatek',
-            team2: 'Aryna Sabalenka',
-            score1: '6-4, 7-5',
-            score2: '',
-            status: 'completed',
-            result: 'Swiatek won in straight sets',
-            venue: 'Rod Laver Arena',
-            team1Logo: '🎾',
-            team2Logo: '🎾'
-          },
-          {
-            id: 'recent-8',
-            sport: 'Hockey',
-            team1: 'Edmonton Oilers',
-            team2: 'Calgary Flames',
-            score1: '5',
-            score2: '3',
-            status: 'completed',
-            result: 'Oilers won',
-            venue: 'Rogers Place',
-            team1Logo: '🏒',
-            team2Logo: '🏒'
-          }
-        ]);
-        }
-        
-        // Mock news data
-        setFeaturedNews([
-          {
-            id: 1,
-            title: 'India Clinches Thriller Against Australia',
-            summary: 'Sharma and Gill power India to commanding position in T20 series',
-            image: '🏏',
-            category: 'Cricket',
-            time: '1 hour ago',
-            featured: true
-          },
-          {
-            id: 2,
-            title: 'Lakers-Warriors Rivalry Heats Up',
-            summary: 'Warriors edge Lakers in overtime thriller at Crypto.com Arena',
-            image: '🏀',
-            category: 'Basketball',
-            time: '3 hours ago',
-            featured: false
-          },
-          {
-            id: 3,
-            title: 'Alcaraz vs Djokovic: Battle of Generations',
-            summary: 'ATP Finals semifinal showcases tennis at its finest',
-            image: '🎾',
-            category: 'Tennis',
-            time: '5 hours ago',
-            featured: false
-          }
-        ]);
+        setLiveMatches(liveData || []);
+        setRecentMatches(recentData || []);
+        setFeaturedNews([]);
         
         setLoading(false);
       } catch (error) {
         console.error('Error:', error);
+        setLiveMatches([]);
+        setRecentMatches([]);
         setLoading(false);
       }
     };
 
     fetchScores();
     
-    // Set up auto-refresh for live scores
-    const interval = setInterval(fetchScores, 30000); // Refresh every 30 seconds
+    // Set up auto-refresh as backup (Socket.IO is primary)
+    const interval = setInterval(fetchScores, 60000); // Refresh every 60 seconds as backup
     
     return () => clearInterval(interval);
   }, [selectedSport]);
@@ -363,7 +137,7 @@ const PublicScoreView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 overflow-x-hidden w-full">
+    <div className="w-full min-h-screen overflow-x-hidden bg-gray-100">
       <Navigation />
 
       {/* Sports Navigation Bar */}
@@ -458,7 +232,7 @@ const PublicScoreView = () => {
                         state={{ fromSport: selectedSport }}
                         className="block"
                       >
-                        <div className="overflow-hidden border border-gray-200 rounded-lg hover:shadow-lg transition-shadow cursor-pointer bg-white">
+                        <div className="overflow-hidden transition-shadow bg-white border border-gray-200 rounded-lg cursor-pointer hover:shadow-lg">
                           {/* Green top bar */}
                           <div className="h-2 bg-green-600"></div>
                           
@@ -477,19 +251,23 @@ const PublicScoreView = () => {
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                   <span className="text-lg font-bold text-gray-900">{match.team1}</span>
-                                  <span className="text-3xl font-bold text-gray-900">{match.score1}</span>
+                                  <div className="text-right">
+                                    <span className="text-3xl font-bold text-gray-900">{match.score1}</span>
+                                    {match.overs1 && (
+                                      <div className="text-sm text-gray-600">({match.overs1} Ov)</div>
+                                    )}
+                                  </div>
                                 </div>
-                                {match.overs1 && (
-                                  <div className="text-sm text-gray-600 text-right">({match.overs1} Ov)</div>
-                                )}
                                 
                                 <div className="flex items-center justify-between">
                                   <span className="text-lg font-bold text-gray-900">{match.team2}</span>
-                                  <span className="text-3xl font-bold text-gray-900">{match.score2}</span>
+                                  <div className="text-right">
+                                    <span className="text-3xl font-bold text-gray-900">{match.score2}</span>
+                                    {match.overs2 && (
+                                      <div className="text-sm text-gray-600">({match.overs2} Ov)</div>
+                                    )}
+                                  </div>
                                 </div>
-                                {match.overs2 && (
-                                  <div className="text-sm text-gray-600 text-right">({match.overs2} Ov)</div>
-                                )}
                               </div>
                             ) : match.sport === 'Tennis' ? (
                               <div className="space-y-3">
@@ -505,18 +283,18 @@ const PublicScoreView = () => {
                             ) : (
                               <div className="grid grid-cols-2 gap-6">
                                 <div className="text-center">
-                                  <div className="text-sm text-gray-600 mb-2">{match.team1}</div>
+                                  <div className="mb-2 text-sm text-gray-600">{match.team1}</div>
                                   <div className="text-5xl font-bold text-gray-900">{match.score1}</div>
                                 </div>
                                 <div className="text-center">
-                                  <div className="text-sm text-gray-600 mb-2">{match.team2}</div>
+                                  <div className="mb-2 text-sm text-gray-600">{match.team2}</div>
                                   <div className="text-5xl font-bold text-gray-900">{match.score2}</div>
                                 </div>
                               </div>
                             )}
 
                             {/* Venue and Time */}
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                            <div className="flex items-center justify-between pt-4 mt-4 border-t border-gray-100">
                               <div className="flex items-center text-sm text-gray-600">
                                 <MapPin className="w-4 h-4 mr-1" />
                                 {match.venue}
@@ -603,7 +381,7 @@ const PublicScoreView = () => {
                         ) : (
                           <div className="grid grid-cols-2 gap-6 py-4">
                             <div className="text-center">
-                              <div className="flex items-center justify-center space-x-2 mb-2">
+                              <div className="flex items-center justify-center mb-2 space-x-2">
                                 <span className="text-2xl">{match.team1Logo}</span>
                                 <span className="font-semibold text-gray-900">{match.team1}</span>
                               </div>
@@ -611,7 +389,7 @@ const PublicScoreView = () => {
                             </div>
                             
                             <div className="text-center">
-                              <div className="flex items-center justify-center space-x-2 mb-2">
+                              <div className="flex items-center justify-center mb-2 space-x-2">
                                 <span className="text-2xl">{match.team2Logo}</span>
                                 <span className="font-semibold text-gray-900">{match.team2}</span>
                               </div>
